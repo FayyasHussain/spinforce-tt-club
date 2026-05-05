@@ -73,13 +73,21 @@ const state = {
   players: [],
   leaderboard: [],
   history: [],
+  skillCategories: [],
+  skills: [],
+  skillProgress: [],
+  expandedSkillCategoryIds: [],
   loadingLeaderboard: true,
   loadingAuthData: false,
   loadingHistory: false,
+  loadingSkillLadder: false,
   authMessage: '',
   authError: '',
   submitMessage: '',
   submitError: '',
+  skillMessage: '',
+  skillError: '',
+  savingSkillId: null,
   activeVideoIndex: 0,
   matchForm: {
     opponentId: '',
@@ -144,6 +152,10 @@ function getRoute() {
     return { area: 'member', view: 'profile' };
   }
 
+  if (pathname === '/member/skills') {
+    return { area: 'member', view: 'skills' };
+  }
+
   if (pathname === '/member') {
     return { area: 'member', view: 'home' };
   }
@@ -161,6 +173,10 @@ function navigateTo(path) {
 
   if (path === '/member/profile') {
     void loadHistory();
+  }
+
+  if (path === '/member/skills') {
+    void loadSkillLadder();
   }
 }
 
@@ -423,9 +439,21 @@ function renderConsoleApp(activeView) {
         ${renderNavigationCard(activeView)}
         ${activeView === 'home' ? renderMatchCard() : ''}
       </div>
-      ${activeView === 'home' ? renderHomeView() : renderProfileView()}
+      ${renderMemberView(activeView)}
     </section>
   `;
+}
+
+function renderMemberView(activeView) {
+  if (activeView === 'profile') {
+    return renderProfileView();
+  }
+
+  if (activeView === 'skills') {
+    return renderSkillLadderView();
+  }
+
+  return renderHomeView();
 }
 
 function renderAuthCard() {
@@ -463,12 +491,13 @@ function renderNavigationCard(activeView) {
       <div class="card-header">
         <div>
           <h2>Views</h2>
-          <p class="muted">Home keeps the rankings and match form. Profile shows your player record and your own match history.</p>
+          <p class="muted">Track matches, review your player record, and update your table tennis skill ladder.</p>
         </div>
       </div>
       <div class="nav-list">
         <button id="view-home" class="nav-button ${activeView === 'home' ? 'active' : ''}" type="button">Home</button>
         <button id="view-profile" class="nav-button ${activeView === 'profile' ? 'active' : ''}" type="button">Profile</button>
+        <button id="view-skills" class="nav-button ${activeView === 'skills' ? 'active' : ''}" type="button">Skill Ladder</button>
         <button id="view-public-home" class="nav-button" type="button">Public Homepage</button>
       </div>
     </section>
@@ -696,6 +725,222 @@ function renderProfileView() {
   `;
 }
 
+const skillLevelOptions = [
+  { value: 0, label: 'Not Started' },
+  { value: 1, label: 'Learning' },
+  { value: 2, label: 'Can Do in Practice' },
+  { value: 3, label: 'Can Use in Match' },
+  { value: 4, label: 'Reliable Under Pressure' },
+  { value: 5, label: 'Advanced / Weapon' },
+];
+
+function getSkillLevelLabel(value) {
+  return skillLevelOptions.find((option) => option.value === Number(value))?.label ?? 'Not Started';
+}
+
+function getSkillCategoryStats(category, progressBySkillId) {
+  const categorySkills = state.skills.filter((skill) => skill.category_id === category.id);
+  const totalCount = categorySkills.length;
+  const startedCount = categorySkills.filter((skill) => Number(progressBySkillId.get(skill.id)?.current_level ?? 0) > 0).length;
+  const matchReadyCount = categorySkills.filter((skill) => Number(progressBySkillId.get(skill.id)?.current_level ?? 0) >= 3).length;
+  const progressPercent = totalCount ? Math.round((startedCount / totalCount) * 100) : 0;
+  const matchReadyPercent = totalCount ? Math.round((matchReadyCount / totalCount) * 100) : 0;
+
+  return {
+    totalCount,
+    startedCount,
+    matchReadyCount,
+    progressPercent,
+    matchReadyPercent,
+  };
+}
+
+function renderSkillLadderView() {
+  if (state.loadingAuthData || state.loadingSkillLadder) {
+    return `
+      <section class="card panel">
+        <div class="card-header">
+          <div>
+            <h2>Skill Ladder</h2>
+            <p class="muted">Loading your table tennis skill ladder.</p>
+          </div>
+        </div>
+      </section>
+    `;
+  }
+
+  if (!state.profile) {
+    return `
+      <section class="card panel">
+        <div class="card-header">
+          <div>
+            <h2>Skill Ladder</h2>
+            <p class="muted">No linked player profile was found for this account.</p>
+          </div>
+        </div>
+      </section>
+    `;
+  }
+
+  if (state.skillError && !state.skillCategories.length && !state.skills.length) {
+    return `
+      <section class="card panel">
+        <div class="card-header">
+          <div>
+            <h2>Skill Ladder</h2>
+            <p class="muted">The skill ladder could not be loaded.</p>
+          </div>
+        </div>
+        <p class="message error">${escapeHtml(state.skillError)}</p>
+      </section>
+    `;
+  }
+
+  const progressBySkillId = new Map(
+    state.skillProgress.map((progress) => [progress.skill_id, progress]),
+  );
+  const totalSkills = state.skills.length;
+  const matchReadyCount = state.skillProgress.filter((progress) => Number(progress.current_level) >= 3).length;
+  const inProgressCount = state.skillProgress.filter((progress) => Number(progress.current_level) > 0).length;
+
+  return `
+    <section class="stack">
+      <section class="card panel">
+        <div class="card-header">
+          <div>
+            <h2>Skill Ladder</h2>
+            <p class="muted">Update your current level for each skill. Notes stay attached to that skill for later review.</p>
+          </div>
+        </div>
+        <div class="skill-summary-grid">
+          <div>
+            <strong>${totalSkills}</strong>
+            <span>Total Skills</span>
+          </div>
+          <div>
+            <strong>${inProgressCount}</strong>
+            <span>Started</span>
+          </div>
+          <div>
+            <strong>${matchReadyCount}</strong>
+            <span>Match Ready+</span>
+          </div>
+        </div>
+        ${state.skillMessage ? `<p class="message success">${escapeHtml(state.skillMessage)}</p>` : ''}
+        ${state.skillError ? `<p class="message error">${escapeHtml(state.skillError)}</p>` : ''}
+      </section>
+
+      <section class="card panel">
+        <div class="card-header">
+          <div>
+            <h2>Category Progress</h2>
+            <p class="muted">Use this map to choose one area at a time instead of scrolling through every skill.</p>
+          </div>
+        </div>
+        <div class="skill-overview-grid">
+          ${state.skillCategories.map((category) => renderSkillCategoryOverview(category, progressBySkillId)).join('')}
+        </div>
+      </section>
+
+      <section class="skill-category-list">
+        ${state.skillCategories.map((category) => renderSkillCategory(category, progressBySkillId)).join('')}
+      </section>
+    </section>
+  `;
+}
+
+function renderSkillCategoryOverview(category, progressBySkillId) {
+  const stats = getSkillCategoryStats(category, progressBySkillId);
+  const isExpanded = state.expandedSkillCategoryIds.includes(category.id);
+
+  return `
+    <button
+      class="skill-overview-card ${isExpanded ? 'active' : ''}"
+      type="button"
+      data-skill-overview="${category.id}"
+      aria-expanded="${isExpanded ? 'true' : 'false'}"
+    >
+      <span>${escapeHtml(category.name)}</span>
+      <strong>${stats.progressPercent}%</strong>
+      <div class="progress-track" aria-hidden="true">
+        <div style="width: ${stats.progressPercent}%"></div>
+      </div>
+      <small>${stats.startedCount}/${stats.totalCount} started · ${stats.matchReadyCount} match ready</small>
+    </button>
+  `;
+}
+
+function renderSkillCategory(category, progressBySkillId) {
+  const categorySkills = state.skills.filter((skill) => skill.category_id === category.id);
+  const stats = getSkillCategoryStats(category, progressBySkillId);
+  const isExpanded = state.expandedSkillCategoryIds.includes(category.id);
+
+  return `
+    <section class="card skill-category-card" id="skill-category-${category.id}">
+      <button
+        class="skill-category-toggle"
+        type="button"
+        data-skill-category-toggle="${category.id}"
+        aria-expanded="${isExpanded ? 'true' : 'false'}"
+      >
+        <div>
+          <h2>${escapeHtml(category.name)}</h2>
+          <p class="muted">${escapeHtml(category.description ?? '')}</p>
+        </div>
+        <div class="skill-category-stats">
+          <span>${stats.startedCount}/${stats.totalCount} started</span>
+          <span>${stats.matchReadyCount} match ready</span>
+          <span class="expand-label">${isExpanded ? 'Collapse' : 'Expand'}</span>
+        </div>
+      </button>
+      <div class="skill-list ${isExpanded ? '' : 'collapsed'}">
+        ${categorySkills.map((skill) => renderSkillItem(skill, progressBySkillId.get(skill.id))).join('')}
+      </div>
+    </section>
+  `;
+}
+
+function renderSkillItem(skill, progress) {
+  const currentLevel = Number(progress?.current_level ?? 0);
+  const remarks = progress?.remarks ?? '';
+  const isSaving = state.savingSkillId === skill.id;
+  const levelOptions = skillLevelOptions
+    .map((option) => {
+      const selected = option.value === currentLevel ? 'selected' : '';
+      return `<option value="${option.value}" ${selected}>${escapeHtml(option.label)}</option>`;
+    })
+    .join('');
+
+  return `
+    <article class="skill-item" data-skill-id="${skill.id}">
+      <div class="skill-item-main">
+        <div>
+          <div class="skill-title-row">
+            <strong>${escapeHtml(skill.name)}</strong>
+            <span class="level-pill level-${currentLevel}">${escapeHtml(getSkillLevelLabel(currentLevel))}</span>
+          </div>
+          <p>${escapeHtml(skill.description ?? '')}</p>
+        </div>
+      </div>
+      <form class="skill-progress-form" data-skill-form="${skill.id}">
+        <div class="skill-form-grid">
+          <label class="field">
+            <span>Current Level</span>
+            <select name="currentLevel" ${isSaving ? 'disabled' : ''}>
+              ${levelOptions}
+            </select>
+          </label>
+          <label class="field">
+            <span>Practice Note</span>
+            <textarea name="remarks" rows="2" placeholder="What changed? What should you remember next time?" ${isSaving ? 'disabled' : ''}>${escapeHtml(remarks)}</textarea>
+          </label>
+        </div>
+        <button class="button button-small" type="submit" ${isSaving ? 'disabled' : ''}>${isSaving ? 'Saving...' : 'Save Progress'}</button>
+      </form>
+    </article>
+  `;
+}
+
 function renderLeaderboardTable() {
   if (state.loadingLeaderboard) {
     return `
@@ -899,6 +1144,11 @@ function bindEvents() {
     profileButton.addEventListener('click', () => navigateTo('/member/profile'));
   }
 
+  const skillsButton = document.querySelector('#view-skills');
+  if (skillsButton) {
+    skillsButton.addEventListener('click', () => navigateTo('/member/skills'));
+  }
+
   const publicHomeButton = document.querySelector('#view-public-home');
   if (publicHomeButton) {
     publicHomeButton.addEventListener('click', () => navigateTo('/'));
@@ -920,9 +1170,58 @@ function bindEvents() {
     });
   });
 
+  document.querySelectorAll('[data-skill-form]').forEach((form) => {
+    form.addEventListener('submit', handleSkillProgressSubmit);
+  });
+
+  document.querySelectorAll('[data-skill-category-toggle]').forEach((button) => {
+    button.addEventListener('click', () => {
+      toggleSkillCategory(Number(button.dataset.skillCategoryToggle));
+    });
+  });
+
+  document.querySelectorAll('[data-skill-overview]').forEach((button) => {
+    button.addEventListener('click', () => {
+      openSkillCategory(Number(button.dataset.skillOverview), { scrollIntoView: true });
+    });
+  });
+
   const video = document.querySelector('#showcase-video');
   if (video) {
     video.addEventListener('ended', showNextVideo);
+  }
+}
+
+function toggleSkillCategory(categoryId) {
+  if (!Number.isInteger(categoryId)) {
+    return;
+  }
+
+  const isExpanded = state.expandedSkillCategoryIds.includes(categoryId);
+  setState({
+    expandedSkillCategoryIds: isExpanded
+      ? state.expandedSkillCategoryIds.filter((id) => id !== categoryId)
+      : [...state.expandedSkillCategoryIds, categoryId],
+  });
+}
+
+function openSkillCategory(categoryId, options = {}) {
+  if (!Number.isInteger(categoryId)) {
+    return;
+  }
+
+  setState({
+    expandedSkillCategoryIds: state.expandedSkillCategoryIds.includes(categoryId)
+      ? state.expandedSkillCategoryIds
+      : [...state.expandedSkillCategoryIds, categoryId],
+  });
+
+  if (options.scrollIntoView) {
+    window.requestAnimationFrame(() => {
+      document
+        .querySelector(`#skill-category-${categoryId}`)
+        ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
   }
 }
 
@@ -1382,6 +1681,137 @@ async function loadHistory() {
   });
 }
 
+async function loadSkillLadder() {
+  if (!state.session || !state.profile) {
+    setState({
+      skillCategories: [],
+      skills: [],
+      skillProgress: [],
+      loadingSkillLadder: false,
+    });
+    return;
+  }
+
+  setState({
+    loadingSkillLadder: true,
+    skillError: '',
+  });
+
+  const [categoriesResult, skillsResult, progressResult] = await Promise.all([
+    supabase
+      .from('skill_categories')
+      .select('id, name, description, sort_order')
+      .eq('is_active', true)
+      .order('sort_order', { ascending: true })
+      .order('name', { ascending: true }),
+    supabase
+      .from('skills')
+      .select('id, category_id, name, description, difficulty_level, sort_order')
+      .eq('is_active', true)
+      .order('sort_order', { ascending: true })
+      .order('name', { ascending: true }),
+    supabase
+      .from('member_skill_progress')
+      .select('id, profile_id, skill_id, current_level, target_level, self_rating, status, remarks, last_practiced_at, updated_at')
+      .eq('profile_id', state.profile.id),
+  ]);
+
+  const error = categoriesResult.error ?? skillsResult.error ?? progressResult.error;
+
+  if (error) {
+    setState({
+      skillCategories: [],
+      skills: [],
+      skillProgress: [],
+      loadingSkillLadder: false,
+      skillError: error.message,
+    });
+    return;
+  }
+
+  setState({
+    skillCategories: categoriesResult.data ?? [],
+    skills: skillsResult.data ?? [],
+    skillProgress: progressResult.data ?? [],
+    loadingSkillLadder: false,
+  });
+}
+
+async function handleSkillProgressSubmit(event) {
+  event.preventDefault();
+
+  if (!state.profile) {
+    setState({
+      skillError: 'No linked player profile found for this user.',
+      skillMessage: '',
+    });
+    return;
+  }
+
+  const form = event.currentTarget;
+  const skillId = Number(form.dataset.skillForm);
+  const formData = new FormData(form);
+  const currentLevel = Number(formData.get('currentLevel'));
+  const remarks = String(formData.get('remarks') ?? '').trim();
+
+  if (!Number.isInteger(skillId) || !skillId) {
+    setState({
+      skillError: 'Skill id is missing.',
+      skillMessage: '',
+    });
+    return;
+  }
+
+  if (!Number.isInteger(currentLevel) || currentLevel < 0 || currentLevel > 5) {
+    setState({
+      skillError: 'Select a valid skill level.',
+      skillMessage: '',
+    });
+    return;
+  }
+
+  setState({
+    savingSkillId: skillId,
+    skillError: '',
+    skillMessage: '',
+  });
+
+  const payload = {
+    profile_id: state.profile.id,
+    skill_id: skillId,
+    current_level: currentLevel,
+    remarks: remarks || null,
+    last_practiced_at: currentLevel > 0 ? new Date().toISOString() : null,
+  };
+
+  const { data, error } = await supabase
+    .from('member_skill_progress')
+    .upsert(payload, { onConflict: 'profile_id,skill_id' })
+    .select('id, profile_id, skill_id, current_level, target_level, self_rating, status, remarks, last_practiced_at, updated_at')
+    .single();
+
+  if (error) {
+    setState({
+      savingSkillId: null,
+      skillError: error.message,
+      skillMessage: '',
+    });
+    return;
+  }
+
+  const nextProgress = [
+    ...state.skillProgress.filter((progress) => progress.skill_id !== skillId),
+    data,
+  ];
+
+  setState({
+    skillProgress: nextProgress,
+    savingSkillId: null,
+    skillError: '',
+    skillMessage: 'Skill progress saved.',
+  });
+}
+
 function updateSetEditorFromForm() {
   const opponentField = document.querySelector('#opponent-id');
   const bestOfField = document.querySelector('#best-of');
@@ -1447,8 +1877,13 @@ async function loadAuthedData() {
       profile: null,
       players: [],
       history: [],
+      skillCategories: [],
+      skills: [],
+      skillProgress: [],
+      expandedSkillCategoryIds: [],
       loadingAuthData: false,
       loadingHistory: false,
+      loadingSkillLadder: false,
     });
     return;
   }
@@ -1462,6 +1897,7 @@ async function loadAuthedData() {
   await loadUserProfile();
   await loadPlayers();
   await loadHistory();
+  await loadSkillLadder();
 
   setState({
     loadingAuthData: false,
@@ -1493,6 +1929,10 @@ async function initialise() {
     if (getRoute().view === 'profile' && state.session) {
       void loadHistory();
     }
+
+    if (getRoute().view === 'skills' && state.session) {
+      void loadSkillLadder();
+    }
   });
 
   render();
@@ -1512,8 +1952,14 @@ async function initialise() {
       profile: null,
       players: [],
       history: [],
+      skillCategories: [],
+      skills: [],
+      skillProgress: [],
+      expandedSkillCategoryIds: [],
       submitError: '',
       submitMessage: '',
+      skillError: '',
+      skillMessage: '',
     });
 
     await loadAuthedData();
