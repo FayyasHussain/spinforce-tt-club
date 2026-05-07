@@ -986,6 +986,72 @@ button:disabled {
   gap: 12px;
 }
 
+.skill-media-form {
+  display: grid;
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: #fff8f5;
+}
+
+.skill-media-header p {
+  margin: 6px 0 0;
+}
+
+.skill-media-controls {
+  display: grid;
+  grid-template-columns: minmax(220px, 0.4fr) minmax(0, 1fr);
+  gap: 12px;
+  align-items: start;
+}
+
+.skill-media-gallery {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.skill-media-card {
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: var(--surface-alt);
+}
+
+.skill-media-card img,
+.skill-media-card video,
+.skill-media-unavailable {
+  display: block;
+  width: 100%;
+  aspect-ratio: 16 / 10;
+  object-fit: cover;
+  background: #211311;
+}
+
+.skill-media-unavailable {
+  display: grid;
+  place-items: center;
+  color: #fff5f0;
+  font-weight: 800;
+}
+
+.skill-media-card div {
+  display: grid;
+  gap: 4px;
+  padding: 10px 12px;
+}
+
+.skill-media-card strong {
+  line-height: 1.25;
+}
+
+.skill-media-card span {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+}
+
 .skill-form-grid {
   display: grid;
   grid-template-columns: minmax(190px, 0.34fr) minmax(0, 1fr);
@@ -1154,8 +1220,10 @@ code {
 
   .field-grid,
   .skill-form-grid,
+  .skill-media-controls,
   .skill-summary-grid,
   .skill-overview-grid,
+  .skill-media-gallery,
   .footer {
     grid-template-columns: 1fr;
   }

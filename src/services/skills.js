@@ -26,11 +26,33 @@ export async function listSkillLadderData(profileId) {
     throw error;
   }
 
+  const progress = progressResult.data ?? [];
+
   return {
     categories: categoriesResult.data ?? [],
     skills: skillsResult.data ?? [],
-    progress: progressResult.data ?? [],
+    progress,
   };
+}
+
+export async function ensureMemberSkillProgress({ profileId, skillId }) {
+  const { data, error } = await supabase
+    .from('member_skill_progress')
+    .upsert(
+      {
+        profile_id: profileId,
+        skill_id: skillId,
+      },
+      { onConflict: 'profile_id,skill_id' },
+    )
+    .select('id, profile_id, skill_id, current_level, target_level, self_rating, status, remarks, last_practiced_at, updated_at')
+    .single();
+
+  if (error) {
+    throw error;
+  }
+
+  return data;
 }
 
 export async function saveMemberSkillProgress({ profileId, skillId, currentLevel, remarks }) {

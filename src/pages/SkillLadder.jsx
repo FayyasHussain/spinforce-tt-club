@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react';
 import { getSkillLevelLabel, skillLevelOptions } from '../data/skillLevels.js';
-import { saveMemberSkillProgress } from '../services/skills.js';
+import { uploadSkillMedia } from '../services/media.js';
+import { ensureMemberSkillProgress, saveMemberSkillProgress } from '../services/skills.js';
 
 function getCategoryStats(category, skills, progressBySkillId) {
   const categorySkills = skills.filter((skill) => skill.category_id === category.id);
@@ -23,13 +24,16 @@ export function SkillLadder({
   categories,
   skills,
   progress,
+  skillMedia,
   loadingAuthData,
   loadingSkillLadder,
   skillError,
   onProgressSaved,
+  onMediaUploaded,
 }) {
   const [expandedCategoryIds, setExpandedCategoryIds] = useState([]);
   const [savingSkillId, setSavingSkillId] = useState(null);
+  const [uploadingSkillId, setUploadingSkillId] = useState(null);
   const [message, setMessage] = useState('');
   const [saveError, setSaveError] = useState('');
   const categoryRefs = useRef(new Map());
@@ -75,6 +79,12 @@ export function SkillLadder({
   }
 
   const progressBySkillId = new Map(progress.map((item) => [item.skill_id, item]));
+  const mediaByProgressId = new Map();
+  for (const item of skillMedia) {
+    const rows = mediaByProgressId.get(item.progress_id) ?? [];
+    rows.push(item);
+    mediaByProgressId.set(item.progress_id, rows);
+  }
   const totalSkills = skills.length;
   const startedCount = progress.filter((item) => Number(item.current_level) > 0).length;
   const matchReadyCount = progress.filter((item) => Number(item.current_level) >= 3).length;
@@ -115,6 +125,30 @@ export function SkillLadder({
       setSaveError(error.message);
     } finally {
       setSavingSkillId(null);
+    }
+  };
+
+  const saveSkillMedia = async ({ skill, file, caption }) => {
+    setUploadingSkillId(skill.id);
+    setMessage('');
+    setSaveError('');
+
+    try {
+      const savedProgress = progressBySkillId.get(skill.id)
+        ?? await ensureMemberSkillProgress({ profileId: profile.id, skillId: skill.id });
+      const uploadedMedia = await uploadSkillMedia({
+        profileId: profile.id,
+        progressId: savedProgress.id,
+        skillId: skill.id,
+        file,
+        caption,
+      });
+      onMediaUploaded({ progress: savedProgress, media: uploadedMedia });
+      setMessage('Media uploaded for skill review.');
+    } catch (error) {
+      setSaveError(error.message);
+    } finally {
+      setUploadingSkillId(null);
     }
   };
 
@@ -177,9 +211,12 @@ export function SkillLadder({
               stats={stats}
               isExpanded={isExpanded}
               progressBySkillId={progressBySkillId}
+              mediaByProgressId={mediaByProgressId}
               savingSkillId={savingSkillId}
+              uploadingSkillId={uploadingSkillId}
               onToggle={() => toggleCategory(category.id)}
               onSave={saveProgress}
+              onUpload={saveSkillMedia}
               setRef={(element) => {
                 if (element) {
                   categoryRefs.current.set(category.id, element);
@@ -206,7 +243,7 @@ function CategoryOverview({ category, stats, isExpanded, onOpen }) {
   );
 }
 
-function SkillCategorySection({ category, stats, isExpanded, progressBySkillId, savingSkillId, onToggle, onSave, setRef }) {
+function SkillCategorySection({ category, stats, isExpanded, progressBySkillId, mediaByProgressId, savingSkillId, uploadingSkillId, onToggle, onSave, onUpload, setRef }) {
   return (
     <section className="card skill-category-card" ref={setRef}>
       <button className="skill-category-toggle" type="button" onClick={onToggle} aria-expanded={isExpanded}>
@@ -226,8 +263,11 @@ function SkillCategorySection({ category, stats, isExpanded, progressBySkillId, 
             key={skill.id}
             skill={skill}
             progress={progressBySkillId.get(skill.id)}
+            mediaItems={mediaByProgressId.get(progressBySkillId.get(skill.id)?.id) ?? []}
             isSaving={savingSkillId === skill.id}
+            isUploading={uploadingSkillId === skill.id}
             onSave={onSave}
+            onUpload={onUpload}
           />
         ))}
       </div>
@@ -235,9 +275,11 @@ function SkillCategorySection({ category, stats, isExpanded, progressBySkillId, 
   );
 }
 
-function SkillItem({ skill, progress, isSaving, onSave }) {
+function SkillItem({ skill, progress, mediaItems, isSaving, isUploading, onSave, onUpload }) {
   const [currentLevel, setCurrentLevel] = useState(Number(progress?.current_level ?? 0));
   const [remarks, setRemarks] = useState(progress?.remarks ?? '');
+  const [caption, setCaption] = useState('');
+  const fileInputId = `skill-media-${skill.id}`;
 
   return (
     <article className="skill-item">
@@ -279,6 +321,69 @@ function SkillItem({ skill, progress, isSaving, onSave }) {
         </div>
         <button className="button button-small" type="submit" disabled={isSaving}>{isSaving ? 'Saving...' : 'Save Progress'}</button>
       </form>
+      <form
+        className="skill-media-form"
+        onSubmit={(event) => {
+          event.preventDefault();
+          const formData = new FormData(event.currentTarget);
+          const file = formData.get('mediaFile');
+          if (!(file instanceof File) || !file.size) {
+            return;
+          }
+          onUpload({ skill, file, caption: caption.trim() });
+          event.currentTarget.reset();
+          setCaption('');
+        }}
+      >
+        <div className="skill-media-header">
+          <div>
+            <strong>Photos & Videos</strong>
+            <p className="muted">Attach practice clips or technique photos for later review.</p>
+          </div>
+        </div>
+        <div className="skill-media-controls">
+          <label className="field">
+            <span>Upload Media</span>
+            <input id={fileInputId} name="mediaFile" type="file" accept="image/*,video/*" disabled={isUploading} />
+          </label>
+          <label className="field">
+            <span>Caption</span>
+            <input
+              type="text"
+              value={caption}
+              onChange={(event) => setCaption(event.target.value)}
+              placeholder="Short note about this clip"
+              disabled={isUploading}
+            />
+          </label>
+        </div>
+        <button className="button button-secondary button-small" type="submit" disabled={isUploading}>{isUploading ? 'Uploading...' : 'Upload Media'}</button>
+      </form>
+      {mediaItems.length ? <SkillMediaGallery mediaItems={mediaItems} /> : null}
     </article>
+  );
+}
+
+function SkillMediaGallery({ mediaItems }) {
+  return (
+    <div className="skill-media-gallery">
+      {mediaItems.map((item) => (
+        <article className="skill-media-card" key={item.id}>
+          {item.signedUrl ? (
+            item.media?.type === 1 ? (
+              <video src={item.signedUrl} controls playsInline />
+            ) : (
+              <img src={item.signedUrl} alt={item.caption || item.media?.title || 'Skill media'} />
+            )
+          ) : (
+            <div className="skill-media-unavailable">Preview unavailable</div>
+          )}
+          <div>
+            <strong>{item.caption || item.media?.title || 'Skill media'}</strong>
+            {item.practice_date ? <span>{item.practice_date}</span> : null}
+          </div>
+        </article>
+      ))}
+    </div>
   );
 }
