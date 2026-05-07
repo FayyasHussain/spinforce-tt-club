@@ -528,12 +528,14 @@ button:disabled {
 }
 
 .nav-button {
+  display: block;
   border: 1px solid var(--line);
   border-radius: 14px;
   background: var(--surface-alt);
   color: var(--text);
   padding: 12px 14px;
   text-align: left;
+  text-decoration: none;
   font-weight: 700;
   cursor: pointer;
 }
