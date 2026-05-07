@@ -1,6 +1,6 @@
 import { MatchHistoryTable } from '../components/MatchHistoryTable.jsx';
 
-export function MemberProfile({ profile, history, loadingAuthData, loadingHistory }) {
+export function MemberProfile({ profile, history, loadingAuthData, loadingHistory, onRetryProfile }) {
   if (loadingAuthData) {
     return (
       <section className="card panel">
@@ -23,6 +23,7 @@ export function MemberProfile({ profile, history, loadingAuthData, loadingHistor
             <p className="muted">No linked player profile was found for this account.</p>
           </div>
         </div>
+        <button className="button" type="button" onClick={onRetryProfile}>Retry Profile Lookup</button>
       </section>
     );
   }
