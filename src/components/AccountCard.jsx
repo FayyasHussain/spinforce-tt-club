@@ -1,4 +1,8 @@
-export function AccountCard({ session, profile, authError, authMessage, onLogout }) {
+export function AccountCard({ session, profile, loadingAuthData, authError, authMessage, onLogout, onRetryProfile }) {
+  const profileLabel = loadingAuthData
+    ? 'Loading...'
+    : profile?.name || 'No linked profile found';
+
   return (
     <section className="card panel">
       <div className="card-header">
@@ -14,12 +18,17 @@ export function AccountCard({ session, profile, authError, authMessage, onLogout
         </div>
         <div>
           <dt>Player Profile</dt>
-          <dd>{profile?.name || 'No linked profile found'}</dd>
+          <dd>{profileLabel}</dd>
         </div>
       </dl>
       {authError ? <p className="message error">{authError}</p> : null}
       {authMessage ? <p className="message success">{authMessage}</p> : null}
-      <button className="button button-secondary" type="button" onClick={onLogout}>Log out</button>
+      <div className="hero-actions">
+        {!profile && !loadingAuthData ? (
+          <button className="button" type="button" onClick={onRetryProfile}>Retry Profile</button>
+        ) : null}
+        <button className="button button-secondary" type="button" onClick={onLogout}>Log out</button>
+      </div>
     </section>
   );
 }

@@ -2,9 +2,11 @@ import { useEffect, useState } from 'react';
 import { Navigate, Route, Routes, useNavigate } from 'react-router-dom';
 import { hasSupabaseConfig, supabase } from './lib/supabase.js';
 import { PublicHome } from './pages/PublicHome.jsx';
+import { ClubRankings } from './pages/ClubRankings.jsx';
 import { MemberGate } from './pages/MemberGate.jsx';
 import { MemberHome } from './pages/MemberHome.jsx';
 import { MemberLayout } from './pages/MemberLayout.jsx';
+import { MemberMatches } from './pages/MemberMatches.jsx';
 import { MemberProfile } from './pages/MemberProfile.jsx';
 import { SkillLadder } from './pages/SkillLadder.jsx';
 import { getUserProfile, listLeaderboard, listPlayers } from './services/profiles.js';
@@ -157,7 +159,7 @@ export function App() {
 
     initialise();
 
-    const { data: authSubscription } = supabase.auth.onAuthStateChange(async (_event, nextSession) => {
+    const { data: authSubscription } = supabase.auth.onAuthStateChange((_event, nextSession) => {
       setSession(nextSession);
       setProfile(null);
       setPlayers([]);
@@ -168,7 +170,10 @@ export function App() {
       setAuthError('');
       setAuthMessage('');
       setSkillError('');
-      await refreshAuthedData(nextSession);
+
+      window.setTimeout(() => {
+        void refreshAuthedData(nextSession);
+      }, 0);
     });
 
     const channel = supabase
@@ -248,12 +253,11 @@ export function App() {
     <MemberLayout
       session={session}
       profile={profile}
-      players={players}
       loadingAuthData={loadingAuthData}
       authError={authError}
       authMessage={authMessage}
       onLogout={handleLogout}
-      onMatchSaved={handleMatchSaved}
+      onRetryProfile={() => refreshAuthedData(session)}
     />
   ) : (
     <MemberGate
@@ -286,8 +290,43 @@ export function App() {
           )}
         />
         <Route path="/member" element={memberElement}>
-          <Route index element={<MemberHome leaderboard={leaderboard} loadingLeaderboard={loadingLeaderboard} />} />
-          <Route path="profile" element={<MemberProfile profile={profile} history={history} loadingAuthData={loadingAuthData} loadingHistory={loadingHistory} />} />
+          <Route
+            index
+            element={(
+              <MemberHome
+                profile={profile}
+                leaderboard={leaderboard}
+                history={history}
+                skills={skills}
+                skillProgress={skillProgress}
+              />
+            )}
+          />
+          <Route
+            path="profile"
+            element={(
+              <MemberProfile
+                profile={profile}
+                history={history}
+                loadingAuthData={loadingAuthData}
+                loadingHistory={loadingHistory}
+                onRetryProfile={() => refreshAuthedData(session)}
+              />
+            )}
+          />
+          <Route
+            path="matches"
+            element={(
+              <MemberMatches
+                profile={profile}
+                players={players}
+                history={history}
+                loadingAuthData={loadingAuthData}
+                loadingHistory={loadingHistory}
+                onMatchSaved={handleMatchSaved}
+              />
+            )}
+          />
           <Route
             path="skills"
             element={(
@@ -303,6 +342,7 @@ export function App() {
               />
             )}
           />
+          <Route path="rankings" element={<ClubRankings leaderboard={leaderboard} loadingLeaderboard={loadingLeaderboard} />} />
         </Route>
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
