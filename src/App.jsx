@@ -11,6 +11,7 @@ import { MemberProfile } from './pages/MemberProfile.jsx';
 import { SkillLadder } from './pages/SkillLadder.jsx';
 import { getUserProfile, listLeaderboard, listPlayers } from './services/profiles.js';
 import { listMemberMatches } from './services/matches.js';
+import { listSkillMedia } from './services/media.js';
 import { listSkillLadderData } from './services/skills.js';
 
 export function App() {
@@ -24,6 +25,7 @@ export function App() {
   const [skillCategories, setSkillCategories] = useState([]);
   const [skills, setSkills] = useState([]);
   const [skillProgress, setSkillProgress] = useState([]);
+  const [skillMedia, setSkillMedia] = useState([]);
   const [loadingLeaderboard, setLoadingLeaderboard] = useState(true);
   const [loadingAuthData, setLoadingAuthData] = useState(false);
   const [loadingHistory, setLoadingHistory] = useState(false);
@@ -78,6 +80,7 @@ export function App() {
       setSkillCategories([]);
       setSkills([]);
       setSkillProgress([]);
+      setSkillMedia([]);
       setLoadingSkillLadder(false);
       return;
     }
@@ -87,13 +90,16 @@ export function App() {
 
     try {
       const data = await listSkillLadderData(currentProfile.id);
+      const media = await listSkillMedia(data.progress.map((item) => item.id));
       setSkillCategories(data.categories);
       setSkills(data.skills);
       setSkillProgress(data.progress);
+      setSkillMedia(media);
     } catch (error) {
       setSkillCategories([]);
       setSkills([]);
       setSkillProgress([]);
+      setSkillMedia([]);
       setSkillError(error.message);
     } finally {
       setLoadingSkillLadder(false);
@@ -108,6 +114,7 @@ export function App() {
       setSkillCategories([]);
       setSkills([]);
       setSkillProgress([]);
+      setSkillMedia([]);
       setLoadingAuthData(false);
       setLoadingHistory(false);
       setLoadingSkillLadder(false);
@@ -167,6 +174,7 @@ export function App() {
       setSkillCategories([]);
       setSkills([]);
       setSkillProgress([]);
+      setSkillMedia([]);
       setAuthError('');
       setAuthMessage('');
       setSkillError('');
@@ -247,6 +255,11 @@ export function App() {
       ...current.filter((item) => item.skill_id !== savedProgress.skill_id),
       savedProgress,
     ]);
+  };
+
+  const handleSkillMediaUploaded = ({ progress: savedProgress, media }) => {
+    handleProgressSaved(savedProgress);
+    setSkillMedia((current) => [media, ...current]);
   };
 
   const memberElement = session ? (
@@ -335,10 +348,12 @@ export function App() {
                 categories={skillCategories}
                 skills={skills}
                 progress={skillProgress}
+                skillMedia={skillMedia}
                 loadingAuthData={loadingAuthData}
                 loadingSkillLadder={loadingSkillLadder}
                 skillError={skillError}
                 onProgressSaved={handleProgressSaved}
+                onMediaUploaded={handleSkillMediaUploaded}
               />
             )}
           />
