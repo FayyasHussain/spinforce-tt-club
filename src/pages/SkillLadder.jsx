@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react';
 import { getSkillLevelLabel, skillLevelOptions } from '../data/skillLevels.js';
-import { uploadSkillMedia } from '../services/media.js';
+import { deleteSkillMedia, updateSkillMediaCaption, uploadSkillMedia } from '../services/media.js';
 import { ensureMemberSkillProgress, saveMemberSkillProgress } from '../services/skills.js';
 
 function getYouTubeEmbedUrl(url) {
@@ -58,10 +58,13 @@ export function SkillLadder({
   skillError,
   onProgressSaved,
   onMediaUploaded,
+  onMediaUpdated,
+  onMediaDeleted,
 }) {
   const [expandedCategoryIds, setExpandedCategoryIds] = useState([]);
   const [savingSkillId, setSavingSkillId] = useState(null);
   const [uploadingSkillId, setUploadingSkillId] = useState(null);
+  const [workingMediaId, setWorkingMediaId] = useState(null);
   const [message, setMessage] = useState('');
   const [saveError, setSaveError] = useState('');
   const categoryRefs = useRef(new Map());
@@ -180,6 +183,38 @@ export function SkillLadder({
     }
   };
 
+  const saveMediaCaption = async ({ mediaItem, caption }) => {
+    setWorkingMediaId(mediaItem.id);
+    setMessage('');
+    setSaveError('');
+
+    try {
+      const updatedMedia = await updateSkillMediaCaption({ mediaItem, caption });
+      onMediaUpdated(updatedMedia);
+      setMessage('Practice note updated.');
+    } catch (error) {
+      setSaveError(error.message);
+    } finally {
+      setWorkingMediaId(null);
+    }
+  };
+
+  const removeSkillMedia = async (mediaItem) => {
+    setWorkingMediaId(mediaItem.id);
+    setMessage('');
+    setSaveError('');
+
+    try {
+      const deletedMediaId = await deleteSkillMedia(mediaItem);
+      onMediaDeleted(deletedMediaId);
+      setMessage('Practice media deleted.');
+    } catch (error) {
+      setSaveError(error.message);
+    } finally {
+      setWorkingMediaId(null);
+    }
+  };
+
   return (
     <section className="stack">
       <section className="card panel">
@@ -242,9 +277,12 @@ export function SkillLadder({
               mediaByProgressId={mediaByProgressId}
               savingSkillId={savingSkillId}
               uploadingSkillId={uploadingSkillId}
+              workingMediaId={workingMediaId}
               onToggle={() => toggleCategory(category.id)}
               onSave={saveProgress}
               onUpload={saveSkillMedia}
+              onUpdateMedia={saveMediaCaption}
+              onDeleteMedia={removeSkillMedia}
               setRef={(element) => {
                 if (element) {
                   categoryRefs.current.set(category.id, element);
@@ -271,7 +309,22 @@ function CategoryOverview({ category, stats, isExpanded, onOpen }) {
   );
 }
 
-function SkillCategorySection({ category, stats, isExpanded, progressBySkillId, mediaByProgressId, savingSkillId, uploadingSkillId, onToggle, onSave, onUpload, setRef }) {
+function SkillCategorySection({
+  category,
+  stats,
+  isExpanded,
+  progressBySkillId,
+  mediaByProgressId,
+  savingSkillId,
+  uploadingSkillId,
+  workingMediaId,
+  onToggle,
+  onSave,
+  onUpload,
+  onUpdateMedia,
+  onDeleteMedia,
+  setRef,
+}) {
   return (
     <section className="card skill-category-card" ref={setRef}>
       <button className="skill-category-toggle" type="button" onClick={onToggle} aria-expanded={isExpanded}>
@@ -295,8 +348,11 @@ function SkillCategorySection({ category, stats, isExpanded, progressBySkillId, 
             mediaItems={mediaByProgressId.get(progressBySkillId.get(skill.id)?.id) ?? []}
             isSaving={savingSkillId === skill.id}
             isUploading={uploadingSkillId === skill.id}
+            workingMediaId={workingMediaId}
             onSave={onSave}
             onUpload={onUpload}
+            onUpdateMedia={onUpdateMedia}
+            onDeleteMedia={onDeleteMedia}
           />
         ))}
       </div>
@@ -304,7 +360,7 @@ function SkillCategorySection({ category, stats, isExpanded, progressBySkillId, 
   );
 }
 
-function SkillItem({ skill, progress, mediaItems, isSaving, isUploading, onSave, onUpload }) {
+function SkillItem({ skill, progress, mediaItems, isSaving, isUploading, workingMediaId, onSave, onUpload, onUpdateMedia, onDeleteMedia }) {
   const [currentLevel, setCurrentLevel] = useState(Number(progress?.current_level ?? 0));
   const [remarks, setRemarks] = useState(progress?.remarks ?? '');
   const [caption, setCaption] = useState('');
@@ -428,7 +484,14 @@ function SkillItem({ skill, progress, mediaItems, isSaving, isUploading, onSave,
             </div>
             <button className="button button-secondary button-small" type="submit" disabled={isUploading}>{isUploading ? 'Uploading...' : 'Add Practice Note'}</button>
           </form>
-          {mediaItems.length ? <SkillMediaGallery mediaItems={mediaItems} /> : <p className="empty-note">No practice notes yet for this skill.</p>}
+          {mediaItems.length ? (
+            <SkillMediaGallery
+              mediaItems={mediaItems}
+              workingMediaId={workingMediaId}
+              onUpdateMedia={onUpdateMedia}
+              onDeleteMedia={onDeleteMedia}
+            />
+          ) : <p className="empty-note">No practice notes yet for this skill.</p>}
         </section>
       ) : null}
 
@@ -464,26 +527,90 @@ function ReferenceVideoModal({ video, onClose }) {
   );
 }
 
-function SkillMediaGallery({ mediaItems }) {
+function SkillMediaGallery({ mediaItems, workingMediaId, onUpdateMedia, onDeleteMedia }) {
   return (
     <div className="skill-media-gallery">
       {mediaItems.map((item) => (
-        <article className="skill-media-card" key={item.id}>
-          {item.signedUrl ? (
-            item.media?.type === 1 ? (
-              <video src={item.signedUrl} controls playsInline />
-            ) : (
-              <img src={item.signedUrl} alt={item.caption || item.media?.title || 'Skill media'} />
-            )
-          ) : (
-            <div className="skill-media-unavailable">Preview unavailable</div>
-          )}
-          <div>
-            <strong>{item.caption || item.media?.title || 'Skill media'}</strong>
-            {item.practice_date ? <span>{item.practice_date}</span> : null}
-          </div>
-        </article>
+        <SkillMediaCard
+          key={item.id}
+          item={item}
+          isWorking={workingMediaId === item.id}
+          onUpdateMedia={onUpdateMedia}
+          onDeleteMedia={onDeleteMedia}
+        />
       ))}
     </div>
+  );
+}
+
+function SkillMediaCard({ item, isWorking, onUpdateMedia, onDeleteMedia }) {
+  const [isEditing, setIsEditing] = useState(false);
+  const [nextCaption, setNextCaption] = useState(item.caption || item.media?.description || '');
+
+  const displayCaption = item.caption || item.media?.description || item.media?.title || 'Skill media';
+
+  return (
+    <article className="skill-media-card">
+      {item.signedUrl ? (
+        item.media?.type === 1 ? (
+          <video src={item.signedUrl} controls playsInline />
+        ) : (
+          <img src={item.signedUrl} alt={displayCaption} />
+        )
+      ) : (
+        <div className="skill-media-unavailable">Preview unavailable</div>
+      )}
+      <div className="skill-media-card-body">
+        {isEditing ? (
+          <form
+            className="skill-media-edit-form"
+            onSubmit={(event) => {
+              event.preventDefault();
+              onUpdateMedia({ mediaItem: item, caption: nextCaption.trim() });
+              setIsEditing(false);
+            }}
+          >
+            <label className="field">
+              <span>Practice Note</span>
+              <input value={nextCaption} onChange={(event) => setNextCaption(event.target.value)} disabled={isWorking} />
+            </label>
+            <div className="skill-media-actions">
+              <button className="button button-small" type="submit" disabled={isWorking}>{isWorking ? 'Saving...' : 'Save'}</button>
+              <button
+                className="button button-secondary button-small"
+                type="button"
+                disabled={isWorking}
+                onClick={() => {
+                  setNextCaption(item.caption || item.media?.description || '');
+                  setIsEditing(false);
+                }}
+              >
+                Cancel
+              </button>
+            </div>
+          </form>
+        ) : (
+          <>
+            <strong>{displayCaption}</strong>
+            {item.practice_date ? <span>{item.practice_date}</span> : null}
+            <div className="skill-media-actions">
+              <button className="button button-secondary button-small" type="button" disabled={isWorking} onClick={() => setIsEditing(true)}>Edit Note</button>
+              <button
+                className="button button-danger button-small"
+                type="button"
+                disabled={isWorking}
+                onClick={() => {
+                  if (window.confirm('Delete this practice media? This cannot be undone.')) {
+                    onDeleteMedia(item);
+                  }
+                }}
+              >
+                {isWorking ? 'Deleting...' : 'Delete'}
+              </button>
+            </div>
+          </>
+        )}
+      </div>
+    </article>
   );
 }
