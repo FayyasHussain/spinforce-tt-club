@@ -10,7 +10,7 @@ export async function listSkillLadderData(profileId) {
       .order('name', { ascending: true }),
     supabase
       .from('skills')
-      .select('id, category_id, name, description, difficulty_level, sort_order')
+      .select('id, category_id, name, description, difficulty_level, sort_order, reference_videos')
       .eq('is_active', true)
       .order('sort_order', { ascending: true })
       .order('name', { ascending: true }),

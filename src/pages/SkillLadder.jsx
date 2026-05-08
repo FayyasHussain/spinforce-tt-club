@@ -3,6 +3,34 @@ import { getSkillLevelLabel, skillLevelOptions } from '../data/skillLevels.js';
 import { uploadSkillMedia } from '../services/media.js';
 import { ensureMemberSkillProgress, saveMemberSkillProgress } from '../services/skills.js';
 
+function getYouTubeEmbedUrl(url) {
+  if (!url) {
+    return '';
+  }
+
+  try {
+    const parsedUrl = new URL(url);
+    const videoId = parsedUrl.hostname.includes('youtu.be')
+      ? parsedUrl.pathname.replace('/', '')
+      : parsedUrl.searchParams.get('v');
+
+    return videoId ? `https://www.youtube.com/embed/${videoId}` : '';
+  } catch {
+    return '';
+  }
+}
+
+function getSkillReferenceVideos(skill) {
+  const referenceVideos = Array.isArray(skill.reference_videos) ? skill.reference_videos : [];
+
+  return referenceVideos
+    .map((video) => {
+      const embedUrl = getYouTubeEmbedUrl(video.url);
+      return embedUrl ? { ...video, embedUrl } : null;
+    })
+    .filter(Boolean);
+}
+
 function getCategoryStats(category, skills, progressBySkillId) {
   const categorySkills = skills.filter((skill) => skill.category_id === category.id);
   const totalCount = categorySkills.length;
@@ -281,8 +309,9 @@ function SkillItem({ skill, progress, mediaItems, isSaving, isUploading, onSave,
   const [remarks, setRemarks] = useState(progress?.remarks ?? '');
   const [caption, setCaption] = useState('');
   const [showPracticeNotes, setShowPracticeNotes] = useState(false);
+  const [activeReferenceVideo, setActiveReferenceVideo] = useState(null);
   const fileInputId = `skill-media-${skill.id}`;
-  const hasReferenceMedia = Boolean(skill.media_id);
+  const referenceVideos = getSkillReferenceVideos(skill);
 
   return (
     <article className="skill-item">
@@ -300,9 +329,21 @@ function SkillItem({ skill, progress, mediaItems, isSaving, isUploading, onSave,
           <h4>Skill Reference</h4>
           <p>{skill.description ?? ''}</p>
         </div>
-        <button className="button button-secondary button-small" type="button" disabled={!hasReferenceMedia}>
-          {hasReferenceMedia ? 'Watch Reference' : 'Reference Video Coming Soon'}
-        </button>
+        {referenceVideos.length ? (
+          <div className="reference-video-list">
+            {referenceVideos.map((video) => (
+              <button className="reference-video-card" type="button" key={video.url} onClick={() => setActiveReferenceVideo(video)}>
+                <span className="play-mark" aria-hidden="true">▶</span>
+                <span>
+                  <strong>{video.title}</strong>
+                  <small>{video.label}</small>
+                </span>
+              </button>
+            ))}
+          </div>
+        ) : (
+          <button className="button button-secondary button-small" type="button" disabled>Reference Video Coming Soon</button>
+        )}
       </section>
 
       <section className="player-skill-section">
@@ -390,7 +431,36 @@ function SkillItem({ skill, progress, mediaItems, isSaving, isUploading, onSave,
           {mediaItems.length ? <SkillMediaGallery mediaItems={mediaItems} /> : <p className="empty-note">No practice notes yet for this skill.</p>}
         </section>
       ) : null}
+
+      {activeReferenceVideo ? (
+        <ReferenceVideoModal
+          video={activeReferenceVideo}
+          onClose={() => setActiveReferenceVideo(null)}
+        />
+      ) : null}
     </article>
+  );
+}
+
+function ReferenceVideoModal({ video, onClose }) {
+  return (
+    <div className="video-modal-backdrop" role="presentation" onClick={onClose}>
+      <section className="video-modal" role="dialog" aria-modal="true" aria-label={video.title} onClick={(event) => event.stopPropagation()}>
+        <div className="video-modal-header">
+          <div>
+            <span className="skill-section-label">Reference Video</span>
+            <h3>{video.title}</h3>
+          </div>
+          <button className="button button-secondary button-small" type="button" onClick={onClose}>Close</button>
+        </div>
+        <iframe
+          src={video.embedUrl}
+          title={video.title}
+          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+          allowFullScreen
+        />
+      </section>
+    </div>
   );
 }
 

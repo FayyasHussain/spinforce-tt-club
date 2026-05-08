@@ -1006,8 +1006,8 @@ button:disabled {
 }
 
 .skill-reference-section {
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-items: center;
+  grid-template-columns: minmax(0, 0.86fr) minmax(260px, 0.44fr);
+  align-items: start;
   background: #fffaf7;
 }
 
@@ -1052,6 +1052,63 @@ button:disabled {
   background: #fffaf7;
 }
 
+.reference-video-list {
+  display: grid;
+  gap: 8px;
+}
+
+.reference-video-card {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 10px;
+  align-items: center;
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: #fff4ef;
+  color: inherit;
+  padding: 9px 10px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.reference-video-card:hover {
+  border-color: rgba(217, 74, 30, 0.5);
+  background: #fff0e8;
+}
+
+.reference-video-card strong,
+.reference-video-card small {
+  display: block;
+}
+
+.reference-video-card strong {
+  overflow: hidden;
+  font-size: 14px;
+  line-height: 1.25;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.reference-video-card small {
+  margin-top: 3px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.play-mark {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 999px;
+  background: var(--brand);
+  color: #fff;
+  font-size: 11px;
+  line-height: 1;
+}
+
 .empty-note {
   margin: 0;
   border: 1px dashed var(--line);
@@ -1060,6 +1117,49 @@ button:disabled {
   color: var(--muted);
   padding: 14px;
   font-weight: 700;
+}
+
+.video-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgba(32, 22, 19, 0.62);
+}
+
+.video-modal {
+  width: min(920px, 100%);
+  display: grid;
+  gap: 14px;
+  border: 1px solid rgba(236, 215, 207, 0.9);
+  border-radius: 18px;
+  background: var(--surface);
+  box-shadow: 0 30px 80px rgba(32, 22, 19, 0.28);
+  padding: 16px;
+}
+
+.video-modal-header {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.video-modal-header h3 {
+  margin: 4px 0 0;
+  font-size: 20px;
+  line-height: 1.2;
+}
+
+.video-modal iframe {
+  display: block;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  border: 0;
+  border-radius: 14px;
+  background: #211311;
 }
 
 .level-pill {
@@ -1357,7 +1457,8 @@ code {
   .skill-category-toggle,
   .skill-reference-section,
   .player-skill-header,
-  .practice-notes-heading {
+  .practice-notes-heading,
+  .video-modal-header {
     align-items: stretch;
     flex-direction: column;
   }
