@@ -150,3 +150,71 @@ export async function uploadSkillMedia({ profileId, progressId, skillId, file, c
     signedUrlError: signedError?.message,
   };
 }
+
+export async function updateSkillMediaCaption({ mediaItem, caption }) {
+  const nextCaption = caption || null;
+
+  const { data: link, error: linkError } = await supabase
+    .from('member_skill_media')
+    .update({ caption: nextCaption })
+    .eq('id', mediaItem.id)
+    .select('id, progress_id, media_id, profile_id, caption, practice_date, created_at')
+    .single();
+
+  if (linkError) {
+    throw linkError;
+  }
+
+  const { data: media, error: mediaError } = await supabase
+    .from('media')
+    .update({ description: nextCaption })
+    .eq('id', mediaItem.media_id)
+    .select('id, type, storage_bucket, storage_path, thumbnail_path, title, description, created_at')
+    .single();
+
+  if (mediaError) {
+    throw mediaError;
+  }
+
+  return {
+    ...mediaItem,
+    ...link,
+    media,
+  };
+}
+
+export async function deleteSkillMedia(mediaItem) {
+  const storageBucket = mediaItem.media?.storage_bucket || MEMBER_MEDIA_BUCKET;
+  const storagePath = mediaItem.media?.storage_path;
+
+  if (storagePath) {
+    const { error: storageError } = await supabase
+      .storage
+      .from(storageBucket)
+      .remove([storagePath]);
+
+    if (storageError) {
+      throw storageError;
+    }
+  }
+
+  const { error: linkError } = await supabase
+    .from('member_skill_media')
+    .delete()
+    .eq('id', mediaItem.id);
+
+  if (linkError) {
+    throw linkError;
+  }
+
+  const { error: mediaError } = await supabase
+    .from('media')
+    .delete()
+    .eq('id', mediaItem.media_id);
+
+  if (mediaError) {
+    throw mediaError;
+  }
+
+  return mediaItem.id;
+}

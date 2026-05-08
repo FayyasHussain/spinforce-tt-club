@@ -601,6 +601,15 @@ button:disabled {
   background: #f1d7cf;
 }
 
+.button-danger {
+  background: #fff1f1;
+  color: var(--error-text);
+}
+
+.button-danger:hover {
+  background: #ffdede;
+}
+
 .button-small {
   width: fit-content;
   padding: 10px 14px;
@@ -1243,9 +1252,9 @@ button:disabled {
   font-weight: 800;
 }
 
-.skill-media-card div {
+.skill-media-card-body {
   display: grid;
-  gap: 4px;
+  gap: 6px;
   padding: 8px 10px;
 }
 
@@ -1257,6 +1266,18 @@ button:disabled {
   color: var(--muted);
   font-size: 12px;
   font-weight: 700;
+}
+
+.skill-media-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.skill-media-edit-form {
+  display: grid;
+  gap: 8px;
 }
 
 .skill-form-grid {

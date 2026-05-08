@@ -262,6 +262,16 @@ export function App() {
     setSkillMedia((current) => [media, ...current]);
   };
 
+  const handleSkillMediaUpdated = (updatedMedia) => {
+    setSkillMedia((current) => current.map((item) => (
+      item.id === updatedMedia.id ? { ...item, ...updatedMedia } : item
+    )));
+  };
+
+  const handleSkillMediaDeleted = (mediaId) => {
+    setSkillMedia((current) => current.filter((item) => item.id !== mediaId));
+  };
+
   const memberElement = session ? (
     <MemberLayout
       session={session}
@@ -354,6 +364,8 @@ export function App() {
                 skillError={skillError}
                 onProgressSaved={handleProgressSaved}
                 onMediaUploaded={handleSkillMediaUploaded}
+                onMediaUpdated={handleSkillMediaUpdated}
+                onMediaDeleted={handleSkillMediaDeleted}
               />
             )}
           />
