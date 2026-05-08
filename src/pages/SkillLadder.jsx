@@ -3,6 +3,34 @@ import { getSkillLevelLabel, skillLevelOptions } from '../data/skillLevels.js';
 import { uploadSkillMedia } from '../services/media.js';
 import { ensureMemberSkillProgress, saveMemberSkillProgress } from '../services/skills.js';
 
+function getYouTubeEmbedUrl(url) {
+  if (!url) {
+    return '';
+  }
+
+  try {
+    const parsedUrl = new URL(url);
+    const videoId = parsedUrl.hostname.includes('youtu.be')
+      ? parsedUrl.pathname.replace('/', '')
+      : parsedUrl.searchParams.get('v');
+
+    return videoId ? `https://www.youtube.com/embed/${videoId}` : '';
+  } catch {
+    return '';
+  }
+}
+
+function getSkillReferenceVideos(skill) {
+  const referenceVideos = Array.isArray(skill.reference_videos) ? skill.reference_videos : [];
+
+  return referenceVideos
+    .map((video) => {
+      const embedUrl = getYouTubeEmbedUrl(video.url);
+      return embedUrl ? { ...video, embedUrl } : null;
+    })
+    .filter(Boolean);
+}
+
 function getCategoryStats(category, skills, progressBySkillId) {
   const categorySkills = skills.filter((skill) => skill.category_id === category.id);
   const totalCount = categorySkills.length;
@@ -248,6 +276,7 @@ function SkillCategorySection({ category, stats, isExpanded, progressBySkillId, 
     <section className="card skill-category-card" ref={setRef}>
       <button className="skill-category-toggle" type="button" onClick={onToggle} aria-expanded={isExpanded}>
         <div>
+          <span className="section-eyebrow">Skill Category</span>
           <h2>{category.name}</h2>
           <p className="muted">{category.description ?? ''}</p>
         </div>
@@ -279,88 +308,159 @@ function SkillItem({ skill, progress, mediaItems, isSaving, isUploading, onSave,
   const [currentLevel, setCurrentLevel] = useState(Number(progress?.current_level ?? 0));
   const [remarks, setRemarks] = useState(progress?.remarks ?? '');
   const [caption, setCaption] = useState('');
+  const [showPracticeNotes, setShowPracticeNotes] = useState(false);
+  const [activeReferenceVideo, setActiveReferenceVideo] = useState(null);
   const fileInputId = `skill-media-${skill.id}`;
+  const referenceVideos = getSkillReferenceVideos(skill);
 
   return (
     <article className="skill-item">
-      <div className="skill-item-main">
+      <div className="skill-item-header">
         <div>
-          <div className="skill-title-row">
-            <strong>{skill.name}</strong>
-            <span className={`level-pill level-${currentLevel}`}>{getSkillLevelLabel(currentLevel)}</span>
-          </div>
+          <span className="section-eyebrow skill-eyebrow">Skill</span>
+          <h3>{skill.name}</h3>
+        </div>
+        <span className={`level-pill level-${currentLevel}`}>{getSkillLevelLabel(currentLevel)}</span>
+      </div>
+
+      <section className="skill-reference-section">
+        <div>
+          <span className="skill-section-label">Static Content</span>
+          <h4>Skill Reference</h4>
           <p>{skill.description ?? ''}</p>
         </div>
-      </div>
-      <form
-        className="skill-progress-form"
-        onSubmit={(event) => {
-          event.preventDefault();
-          onSave({ skillId: skill.id, currentLevel, remarks: remarks.trim() });
-        }}
-      >
-        <div className="skill-form-grid">
-          <label className="field">
-            <span>Current Level</span>
-            <select value={currentLevel} onChange={(event) => setCurrentLevel(Number(event.target.value))} disabled={isSaving}>
-              {skillLevelOptions.map((option) => (
-                <option value={option.value} key={option.value}>{option.label}</option>
-              ))}
-            </select>
-          </label>
-          <label className="field">
-            <span>Practice Note</span>
-            <textarea
-              value={remarks}
-              onChange={(event) => setRemarks(event.target.value)}
-              rows="2"
-              placeholder="What changed? What should you remember next time?"
-              disabled={isSaving}
-            />
-          </label>
-        </div>
-        <button className="button button-small" type="submit" disabled={isSaving}>{isSaving ? 'Saving...' : 'Save Progress'}</button>
-      </form>
-      <form
-        className="skill-media-form"
-        onSubmit={(event) => {
-          event.preventDefault();
-          const formData = new FormData(event.currentTarget);
-          const file = formData.get('mediaFile');
-          if (!(file instanceof File) || !file.size) {
-            return;
-          }
-          onUpload({ skill, file, caption: caption.trim() });
-          event.currentTarget.reset();
-          setCaption('');
-        }}
-      >
-        <div className="skill-media-header">
-          <div>
-            <strong>Photos & Videos</strong>
-            <p className="muted">Attach practice clips or technique photos for later review.</p>
+        {referenceVideos.length ? (
+          <div className="reference-video-list">
+            {referenceVideos.map((video) => (
+              <button className="reference-video-card" type="button" key={video.url} onClick={() => setActiveReferenceVideo(video)}>
+                <span className="play-mark" aria-hidden="true">▶</span>
+                <span>
+                  <strong>{video.title}</strong>
+                  <small>{video.label}</small>
+                </span>
+              </button>
+            ))}
           </div>
+        ) : (
+          <button className="button button-secondary button-small" type="button" disabled>Reference Video Coming Soon</button>
+        )}
+      </section>
+
+      <section className="player-skill-section">
+        <div className="player-skill-header">
+          <div>
+            <span className="skill-section-label">Player Data</span>
+            <h4>Player Skill Status</h4>
+          </div>
+          <button className="button button-secondary button-small" type="button" onClick={() => setShowPracticeNotes((current) => !current)}>
+            {showPracticeNotes ? 'Hide Practice Notes' : `See Practice Notes${mediaItems.length ? ` (${mediaItems.length})` : ''}`}
+          </button>
         </div>
-        <div className="skill-media-controls">
-          <label className="field">
-            <span>Upload Media</span>
-            <input id={fileInputId} name="mediaFile" type="file" accept="image/*,video/*" disabled={isUploading} />
-          </label>
-          <label className="field">
-            <span>Caption</span>
-            <input
-              type="text"
-              value={caption}
-              onChange={(event) => setCaption(event.target.value)}
-              placeholder="Short note about this clip"
-              disabled={isUploading}
-            />
-          </label>
-        </div>
-        <button className="button button-secondary button-small" type="submit" disabled={isUploading}>{isUploading ? 'Uploading...' : 'Upload Media'}</button>
-      </form>
-      {mediaItems.length ? <SkillMediaGallery mediaItems={mediaItems} /> : null}
+
+        <form
+          className="skill-progress-form"
+          onSubmit={(event) => {
+            event.preventDefault();
+            onSave({ skillId: skill.id, currentLevel, remarks: remarks.trim() });
+          }}
+        >
+          <div className="skill-form-grid">
+            <label className="field">
+              <span>Current Level</span>
+              <select value={currentLevel} onChange={(event) => setCurrentLevel(Number(event.target.value))} disabled={isSaving}>
+                {skillLevelOptions.map((option) => (
+                  <option value={option.value} key={option.value}>{option.label}</option>
+                ))}
+              </select>
+            </label>
+            <label className="field">
+              <span>Current Practice Focus</span>
+              <textarea
+                value={remarks}
+                onChange={(event) => setRemarks(event.target.value)}
+                rows="2"
+                placeholder="What are you working on for this skill?"
+                disabled={isSaving}
+              />
+            </label>
+          </div>
+          <button className="button button-small" type="submit" disabled={isSaving}>{isSaving ? 'Saving...' : 'Save Status'}</button>
+        </form>
+      </section>
+
+      {showPracticeNotes ? (
+        <section className="practice-notes-panel">
+          <div className="practice-notes-heading">
+            <div>
+              <h4>Practice Notes</h4>
+              <p className="muted">Add practice clips, technique photos, and notes for review. Latest notes stay at the top.</p>
+            </div>
+          </div>
+          <form
+            className="skill-media-form"
+            onSubmit={(event) => {
+              event.preventDefault();
+              const formData = new FormData(event.currentTarget);
+              const file = formData.get('mediaFile');
+              if (!(file instanceof File) || !file.size) {
+                return;
+              }
+              onUpload({ skill, file, caption: caption.trim() });
+              event.currentTarget.reset();
+              setCaption('');
+            }}
+          >
+            <div className="skill-media-controls">
+              <label className="field">
+                <span>Practice Media</span>
+                <input id={fileInputId} name="mediaFile" type="file" accept="image/*,video/*" disabled={isUploading} />
+              </label>
+              <label className="field">
+                <span>Practice Note</span>
+                <input
+                  type="text"
+                  value={caption}
+                  onChange={(event) => setCaption(event.target.value)}
+                  placeholder="What did you learn from this practice?"
+                  disabled={isUploading}
+                />
+              </label>
+            </div>
+            <button className="button button-secondary button-small" type="submit" disabled={isUploading}>{isUploading ? 'Uploading...' : 'Add Practice Note'}</button>
+          </form>
+          {mediaItems.length ? <SkillMediaGallery mediaItems={mediaItems} /> : <p className="empty-note">No practice notes yet for this skill.</p>}
+        </section>
+      ) : null}
+
+      {activeReferenceVideo ? (
+        <ReferenceVideoModal
+          video={activeReferenceVideo}
+          onClose={() => setActiveReferenceVideo(null)}
+        />
+      ) : null}
     </article>
+  );
+}
+
+function ReferenceVideoModal({ video, onClose }) {
+  return (
+    <div className="video-modal-backdrop" role="presentation" onClick={onClose}>
+      <section className="video-modal" role="dialog" aria-modal="true" aria-label={video.title} onClick={(event) => event.stopPropagation()}>
+        <div className="video-modal-header">
+          <div>
+            <span className="skill-section-label">Reference Video</span>
+            <h3>{video.title}</h3>
+          </div>
+          <button className="button button-secondary button-small" type="button" onClick={onClose}>Close</button>
+        </div>
+        <iframe
+          src={video.embedUrl}
+          title={video.title}
+          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+          allowFullScreen
+        />
+      </section>
+    </div>
   );
 }
 
