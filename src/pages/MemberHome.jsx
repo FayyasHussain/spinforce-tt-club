@@ -1,5 +1,3 @@
-import { Link } from 'react-router-dom';
-
 export function MemberHome({ profile, leaderboard, history, skills, skillProgress }) {
   const rankIndex = profile ? leaderboard.findIndex((player) => player.id === profile.id) : -1;
   const currentRank = rankIndex >= 0 ? rankIndex + 1 : null;
@@ -14,54 +12,44 @@ export function MemberHome({ profile, leaderboard, history, skills, skillProgres
         <div>
           <p className="eyebrow dark">Member Dashboard</p>
           <h2>Welcome back{profile?.name ? `, ${profile.name}` : ''}</h2>
-          <p className="muted">Your match record, skill progress, and club activity live here. Pick the next action and jump straight in.</p>
+          <p className="muted dashboard-lead-full">Your match record, skill progress, and club activity live here. Pick the next action and jump straight in.</p>
+          <p className="muted dashboard-lead-mobile">Your match, skill, and ranking snapshot.</p>
         </div>
       </section>
 
       <section className="dashboard-stat-grid">
         <article className="card panel dashboard-stat-card">
-          <span>Current Rank</span>
-          <strong>{currentRank ? `#${currentRank}` : '-'}</strong>
-          <p>{ownRanking?.points ?? 0} points</p>
+          <span className="dashboard-icon" aria-hidden="true">#</span>
+          <div>
+            <span>Current Rank</span>
+            <strong>{currentRank ? `#${currentRank}` : '-'}</strong>
+            <p>{ownRanking?.points ?? 0} points</p>
+          </div>
         </article>
         <article className="card panel dashboard-stat-card">
-          <span>Matches</span>
-          <strong>{ownRanking?.total_matches ?? history.length}</strong>
-          <p>{ownRanking?.wins ?? 0} wins · {ownRanking?.losses ?? 0} losses</p>
+          <span className="dashboard-icon" aria-hidden="true">M</span>
+          <div>
+            <span>Matches</span>
+            <strong>{ownRanking?.total_matches ?? history.length}</strong>
+            <p>{ownRanking?.wins ?? 0} wins · {ownRanking?.losses ?? 0} losses</p>
+          </div>
         </article>
         <article className="card panel dashboard-stat-card">
-          <span>Skills Started</span>
-          <strong>{startedSkills}</strong>
-          <p>{skills.length} total ladder skills</p>
+          <span className="dashboard-icon" aria-hidden="true">S</span>
+          <div>
+            <span>Skills Started</span>
+            <strong>{startedSkills}</strong>
+            <p>{skills.length} total ladder skills</p>
+          </div>
         </article>
         <article className="card panel dashboard-stat-card">
-          <span>Match Ready Skills</span>
-          <strong>{matchReadySkills}</strong>
-          <p>Level 3 or higher</p>
+          <span className="dashboard-icon" aria-hidden="true">R</span>
+          <div>
+            <span>Match Ready</span>
+            <strong>{matchReadySkills}</strong>
+            <p>Level 3+</p>
+          </div>
         </article>
-      </section>
-
-      <section className="dashboard-action-grid">
-        <DashboardAction
-          title="Profile"
-          description="View your member details. Photos, edit options, and playing preferences can come here later."
-          to="/member/profile"
-        />
-        <DashboardAction
-          title="Matches"
-          description="Submit a match score or review your match history."
-          to="/member/matches"
-        />
-        <DashboardAction
-          title="Skill Ladder"
-          description="Update progress category by category and keep training notes attached to each skill."
-          to="/member/skills"
-        />
-        <DashboardAction
-          title="Club Rankings"
-          description="Check the current leaderboard and see how match results affect points."
-          to="/member/rankings"
-        />
       </section>
 
       <section className="dashboard-two-column">
@@ -97,17 +85,5 @@ export function MemberHome({ profile, leaderboard, history, skills, skillProgres
         </section>
       </section>
     </section>
-  );
-}
-
-function DashboardAction({ title, description, to }) {
-  return (
-    <Link className="card panel dashboard-action-card" to={to}>
-      <div>
-        <h2>{title}</h2>
-        <p>{description}</p>
-      </div>
-      <span>Open</span>
-    </Link>
   );
 }

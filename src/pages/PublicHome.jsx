@@ -3,12 +3,23 @@ import { Link } from 'react-router-dom';
 import { LoginForm } from '../components/LoginForm.jsx';
 import { showcaseVideos, site, testimonials } from '../data/siteContent.js';
 
+const publicNavLinks = [
+  { href: '#top', label: 'Home' },
+  { href: '#about', label: 'About' },
+  { href: '#highlights', label: 'Highlights' },
+  { href: '#testimonials', label: 'Testimonials' },
+  { href: '#contact', label: 'Contact' },
+];
+
 export function PublicHome({ session, showLogin, authError, authMessage, onToggleLogin, onLogin }) {
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const closeMenu = () => setIsMenuOpen(false);
+
   return (
     <section className="landing">
       <header className="site-header card">
         <div className="site-header-inner">
-          <a className="brand-lockup" href="#top">
+          <a className="brand-lockup" href="#top" onClick={closeMenu}>
             <img className="site-logo" src={site.logo} alt="Spin Force Table Tennis Club logo" />
             <div className="brand-copy">
               <strong>Spin Force</strong>
@@ -16,10 +27,9 @@ export function PublicHome({ session, showLogin, authError, authMessage, onToggl
             </div>
           </a>
           <nav className="site-nav" aria-label="Primary">
-            <a href="#about">About</a>
-            <a href="#highlights">Highlights</a>
-            <a href="#testimonials">Testimonials</a>
-            <a href="#contact">Contact</a>
+            {publicNavLinks.slice(1).map((link) => (
+              <a href={link.href} key={link.href}>{link.label}</a>
+            ))}
           </nav>
           <div className="member-login">
             {session ? (
@@ -30,22 +40,59 @@ export function PublicHome({ session, showLogin, authError, authMessage, onToggl
               </button>
             )}
           </div>
+          <button
+            className={`public-menu-button ${isMenuOpen ? 'open' : ''}`}
+            type="button"
+            onClick={() => setIsMenuOpen((value) => !value)}
+            aria-label={isMenuOpen ? 'Close menu' : 'Open menu'}
+            aria-expanded={isMenuOpen}
+          >
+            <span />
+            <span />
+            <span />
+          </button>
+        </div>
+        <div className={`public-menu-panel ${isMenuOpen ? 'open' : ''}`}>
+          <nav className="public-menu-links" aria-label="Mobile primary">
+            {publicNavLinks.map((link) => (
+              <a href={link.href} key={link.href} onClick={closeMenu}>{link.label}</a>
+            ))}
+            <a href={site.instagramUrl} target="_blank" rel="noreferrer" onClick={closeMenu}>Instagram</a>
+          </nav>
+          <div className="public-menu-actions">
+            {session ? (
+              <Link className="button" to="/member" onClick={closeMenu}>Open Member Area</Link>
+            ) : (
+              <button
+                className="button"
+                type="button"
+                onClick={() => {
+                  closeMenu();
+                  onToggleLogin();
+                }}
+              >
+                {showLogin ? 'Close Login' : 'Member Login'}
+              </button>
+            )}
+            <a className="button button-secondary" href={site.whatsappUrl} target="_blank" rel="noreferrer" onClick={closeMenu}>Join On WhatsApp</a>
+            <a className="button button-secondary" href={site.mapUrl} target="_blank" rel="noreferrer" onClick={closeMenu}>Get Directions</a>
+          </div>
         </div>
         {showLogin ? <LoginForm authError={authError} authMessage={authMessage} onLogin={onLogin} /> : null}
       </header>
 
       <section id="top" className="hero-home card">
+        <img className="hero-home-photo" src={site.heroImage} alt="Spin Force table tennis club session" />
         <div className="hero-home-copy">
-          <p className="eyebrow">Spin Force Table Tennis Club</p>
-          <h1>Welcome to Spin Force Table Tennis Club, Kochi</h1>
-          <p className="hero-lead">A focused club environment for training, competitive matchplay, skill development, and a strong local table tennis community.</p>
+          <h1>
+            <span>Welcome to</span>
+            <span>SpinForce TT Club</span>
+          </h1>
+          <p className="hero-lead">Kochi's new Home for Table Tennis</p>
           <div className="hero-actions">
+            <a className="button" href={site.whatsappUrl} target="_blank" rel="noreferrer">Join On WhatsApp</a>
             <a className="button" href={site.mapUrl} target="_blank" rel="noreferrer">Get Directions</a>
-            <a className="button button-secondary" href="#about">Explore The Club</a>
           </div>
-        </div>
-        <div className="hero-home-mark">
-          <img className="hero-mark-logo" src={site.logo} alt="Spin Force crest" />
         </div>
       </section>
 
@@ -151,6 +198,11 @@ export function PublicHome({ session, showLogin, authError, authMessage, onToggl
           <p><a className="inline-link" href={site.instagramUrl} target="_blank" rel="noreferrer">Instagram Page</a></p>
         </div>
       </footer>
+      <a className="whatsapp-float" href={site.whatsappUrl} target="_blank" rel="noreferrer" aria-label="Contact Spin Force on WhatsApp">
+        <svg viewBox="0 0 32 32" aria-hidden="true">
+          <path d="M16 3.6A12.1 12.1 0 0 0 5.7 22.1L4 28.4l6.5-1.7A12.1 12.1 0 1 0 16 3.6Zm0 2.3a9.8 9.8 0 0 1 8.3 15l-.3.5.9 3.3-3.4-.9-.5.3A9.8 9.8 0 1 1 16 5.9Zm-4.1 4.4c-.2 0-.5.1-.7.4-.4.4-1.3 1.3-1.3 3.1s1.3 3.6 1.5 3.9c.2.2 2.5 4 6.3 5.4 3.1 1.2 3.8.9 4.4.9.7-.1 2.2-.9 2.5-1.8.3-.9.3-1.7.2-1.9-.1-.2-.3-.3-.7-.5l-2.4-1.2c-.3-.1-.6-.2-.8.2l-1.1 1.4c-.2.2-.4.3-.8.1-.3-.2-1.5-.6-2.9-1.8-1.1-1-1.8-2.2-2-2.5-.2-.4 0-.6.2-.8l.5-.6c.2-.2.2-.4.4-.6.1-.2.1-.4 0-.6l-1.1-2.7c-.3-.6-.5-.6-.8-.6h-.6Z" />
+        </svg>
+      </a>
     </section>
   );
 }

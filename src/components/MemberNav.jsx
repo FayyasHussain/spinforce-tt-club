@@ -1,14 +1,14 @@
 import { NavLink } from 'react-router-dom';
 
-export function MemberNav() {
+export function MemberNav({ onNavigate }) {
   return (
     <nav className="member-top-nav" aria-label="Member navigation">
-      <NavLink className={({ isActive }) => `member-top-link ${isActive ? 'active' : ''}`} to="/member" end>Dashboard</NavLink>
-      <NavLink className={({ isActive }) => `member-top-link ${isActive ? 'active' : ''}`} to="/member/profile">Profile</NavLink>
-      <NavLink className={({ isActive }) => `member-top-link ${isActive ? 'active' : ''}`} to="/member/matches">Matches</NavLink>
-      <NavLink className={({ isActive }) => `member-top-link ${isActive ? 'active' : ''}`} to="/member/skills">Skill Ladder</NavLink>
-      <NavLink className={({ isActive }) => `member-top-link ${isActive ? 'active' : ''}`} to="/member/rankings">Club Rankings</NavLink>
-      <NavLink className="member-top-link" to="/">Public Homepage</NavLink>
+      <NavLink className={({ isActive }) => `member-top-link ${isActive ? 'active' : ''}`} to="/member" end onClick={onNavigate}>Dashboard</NavLink>
+      <NavLink className={({ isActive }) => `member-top-link ${isActive ? 'active' : ''}`} to="/member/profile" onClick={onNavigate}>Profile</NavLink>
+      <NavLink className={({ isActive }) => `member-top-link ${isActive ? 'active' : ''}`} to="/member/matches" onClick={onNavigate}>Matches</NavLink>
+      <NavLink className={({ isActive }) => `member-top-link ${isActive ? 'active' : ''}`} to="/member/skills" onClick={onNavigate}>Skill Ladder</NavLink>
+      <NavLink className={({ isActive }) => `member-top-link ${isActive ? 'active' : ''}`} to="/member/rankings" onClick={onNavigate}>Club Rankings</NavLink>
+      <NavLink className="member-top-link" to="/" onClick={onNavigate}>Public Homepage</NavLink>
     </nav>
   );
 }

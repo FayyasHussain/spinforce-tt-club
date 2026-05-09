@@ -4,7 +4,7 @@ import { createCompletedMatch } from '../services/matches.js';
 function createMatchForm(overrides = {}) {
   const bestOf = Number(overrides.bestOf ?? 5);
   const pointsToWin = Number(overrides.pointsToWin ?? 11);
-  const safeBestOf = Number.isInteger(bestOf) && bestOf >= 3 && bestOf % 2 === 1 ? bestOf : 5;
+  const safeBestOf = Number.isInteger(bestOf) && bestOf >= 1 && bestOf % 2 === 1 ? bestOf : 5;
   const safePoints = pointsToWin === 21 ? 21 : 11;
   const previousSets = overrides.sets ?? [];
 
@@ -12,7 +12,80 @@ function createMatchForm(overrides = {}) {
     opponentId: String(overrides.opponentId ?? ''),
     bestOf: safeBestOf,
     pointsToWin: safePoints,
-    sets: Array.from({ length: safeBestOf }, (_, index) => previousSets[index] ?? { winner: '', loserScore: '' }),
+    sets: clearSetsAfterDecision(
+      Array.from({ length: safeBestOf }, (_, index) => previousSets[index] ?? { winner: '', loserScore: '' }),
+      safeBestOf,
+    ),
+  };
+}
+
+function isCompleteSet(setEntry) {
+  return Boolean(setEntry?.winner && setEntry?.loserScore !== '');
+}
+
+function getMatchDecisionIndex(sets, bestOf) {
+  const requiredWins = Math.floor(bestOf / 2) + 1;
+  let player1Wins = 0;
+  let player2Wins = 0;
+
+  for (let index = 0; index < sets.length; index += 1) {
+    const setEntry = sets[index];
+
+    if (!isCompleteSet(setEntry)) {
+      continue;
+    }
+
+    if (setEntry.winner === 'player1') {
+      player1Wins += 1;
+    } else if (setEntry.winner === 'player2') {
+      player2Wins += 1;
+    }
+
+    if (player1Wins === requiredWins || player2Wins === requiredWins) {
+      return index;
+    }
+  }
+
+  return -1;
+}
+
+function clearSetsAfterDecision(sets, bestOf) {
+  const decisionIndex = getMatchDecisionIndex(sets, bestOf);
+
+  if (decisionIndex < 0) {
+    return sets;
+  }
+
+  return sets.map((setEntry, index) => (
+    index > decisionIndex ? { winner: '', loserScore: '' } : setEntry
+  ));
+}
+
+function getMatchSummary(sets, bestOf, pointsToWin, yourName, opponentLabel) {
+  const decisionIndex = getMatchDecisionIndex(sets, bestOf);
+
+  if (decisionIndex < 0) {
+    return null;
+  }
+
+  const completedSets = sets.slice(0, decisionIndex + 1);
+  const player1Wins = completedSets.filter((setEntry) => setEntry.winner === 'player1').length;
+  const player2Wins = completedSets.filter((setEntry) => setEntry.winner === 'player2').length;
+  const winnerName = player1Wins > player2Wins ? yourName : opponentLabel;
+  const scoreLine = completedSets
+    .map((setEntry) => {
+      const loserScore = Number(setEntry.loserScore);
+      const player1Score = setEntry.winner === 'player1' ? pointsToWin : loserScore;
+      const player2Score = setEntry.winner === 'player2' ? pointsToWin : loserScore;
+
+      return `${player1Score}-${player2Score}`;
+    })
+    .join(', ');
+
+  return {
+    winnerName,
+    games: `${player1Wins}-${player2Wins}`,
+    scoreLine,
   };
 }
 
@@ -57,6 +130,13 @@ export function MatchForm({ profile, players, loadingAuthData, onSaved }) {
 
   const selectedOpponent = players.find((player) => String(player.id) === matchForm.opponentId);
   const opponentLabel = selectedOpponent?.name ?? 'Opponent Profile';
+  const matchSummary = getMatchSummary(
+    matchForm.sets,
+    matchForm.bestOf,
+    matchForm.pointsToWin,
+    profile.name,
+    opponentLabel,
+  );
 
   const updateConfig = (patch) => {
     setMatchForm((current) => createMatchForm({ ...current, ...patch }));
@@ -79,7 +159,7 @@ export function MatchForm({ profile, players, loadingAuthData, onSaved }) {
         return { ...set, [field]: value };
       });
 
-      return createMatchForm({ ...current, sets });
+      return createMatchForm({ ...current, sets: clearSetsAfterDecision(sets, current.bestOf) });
     });
   };
 
@@ -208,7 +288,7 @@ export function MatchForm({ profile, players, loadingAuthData, onSaved }) {
           <label className="field">
             <span>Match Format</span>
             <select value={matchForm.bestOf} onChange={(event) => updateConfig({ bestOf: Number(event.target.value) })}>
-              {[3, 5, 7, 9].map((value) => <option value={value} key={value}>Best of {value}</option>)}
+              {[1, 3, 5, 7, 9].map((value) => <option value={value} key={value}>Best of {value}</option>)}
             </select>
           </label>
           <label className="field">
@@ -227,10 +307,18 @@ export function MatchForm({ profile, players, loadingAuthData, onSaved }) {
               yourName={profile.name}
               opponentLabel={opponentLabel}
               setEntry={setEntry}
+              isLocked={getMatchDecisionIndex(matchForm.sets.slice(0, index), matchForm.bestOf) >= 0}
               onChange={updateSet}
             />
           ))}
         </div>
+        {matchSummary ? (
+          <div className="match-summary">
+            <span>Match result</span>
+            <strong>{matchSummary.winnerName} wins {matchSummary.games}</strong>
+            <small>{matchSummary.scoreLine}</small>
+          </div>
+        ) : null}
         {submitError ? <p className="message error">{submitError}</p> : null}
         {submitMessage ? <p className="message success">{submitMessage}</p> : null}
         <button className="button" type="submit">Save Match</button>
@@ -239,37 +327,31 @@ export function MatchForm({ profile, players, loadingAuthData, onSaved }) {
   );
 }
 
-function SetRow({ index, pointsToWin, yourName, opponentLabel, setEntry, onChange }) {
+function SetRow({ index, pointsToWin, yourName, opponentLabel, setEntry, isLocked, onChange }) {
   const gameNumber = index + 1;
   const losingScores = Array.from({ length: pointsToWin === 21 ? 20 : 10 }, (_, score) => score);
-  const player1Score = setEntry.winner === 'player1' ? pointsToWin : setEntry.loserScore;
-  const player2Score = setEntry.winner === 'player2' ? pointsToWin : setEntry.loserScore;
 
   return (
-    <div className="set-row">
-      <strong>Game {gameNumber}</strong>
-      <div className="field-grid">
-        <label className="field">
-          <span>Winner</span>
-          <select value={setEntry.winner} onChange={(event) => onChange(index, 'winner', event.target.value)}>
-            <option value="">Select winner</option>
-            <option value="player1">{yourName}</option>
-            <option value="player2">{opponentLabel}</option>
-          </select>
-        </label>
-        <label className="field">
-          <span>Losing Score</span>
-          <select value={setEntry.loserScore} onChange={(event) => onChange(index, 'loserScore', event.target.value)} disabled={!setEntry.winner}>
-            <option value="">Select score</option>
-            {losingScores.map((score) => <option value={score} key={score}>{score}</option>)}
-          </select>
-        </label>
-      </div>
-      <div className="set-preview">
-        <span>{yourName}: <strong>{player1Score === '' ? '-' : player1Score}</strong></span>
-        <span>{opponentLabel}: <strong>{player2Score === '' ? '-' : player2Score}</strong></span>
-        <span className="muted">Winner auto-gets {pointsToWin}. Losing score stays within normal regulation scoring.</span>
-      </div>
+    <div className={`set-row ${isLocked ? 'locked' : ''}`}>
+      <strong>G{gameNumber}</strong>
+      <label className="set-inline-field">
+        <span>Winner</span>
+        <select value={setEntry.winner} onChange={(event) => onChange(index, 'winner', event.target.value)} disabled={isLocked}>
+          <option value="">Winner</option>
+          <option value="player1">{yourName}</option>
+          <option value="player2">{opponentLabel}</option>
+        </select>
+      </label>
+      <span className="winner-points">{setEntry.winner ? pointsToWin : '-'}</span>
+      <span className="score-divider">|</span>
+      <label className="set-inline-field">
+        <span>Loser</span>
+        <select value={setEntry.loserScore} onChange={(event) => onChange(index, 'loserScore', event.target.value)} disabled={isLocked || !setEntry.winner}>
+          <option value="">Loser</option>
+          {losingScores.map((score) => <option value={score} key={score}>{score}</option>)}
+        </select>
+      </label>
+      <span className="set-score-preview">{isLocked ? 'Done' : ''}</span>
     </div>
   );
 }

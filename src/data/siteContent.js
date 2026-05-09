@@ -1,11 +1,14 @@
 import spinforceLogo from '../assets/spinforce-logo.png';
+import clubTableImage from '../assets/spinforce-club-table.jpg';
 
 export const site = {
   logo: spinforceLogo,
+  heroImage: clubTableImage,
   mapUrl: 'https://maps.app.goo.gl/RCTrdf86nwH3vi638',
   venueAddress: 'Beats Square, Anakuzhiyil Building, Kottaythupura, Thiruvankulam, Ernakulam, Kerala 682305',
   contactNumber: '+91 90303 58968',
-  instagramUrl: 'https://instagram.com/',
+  whatsappUrl: 'https://wa.me/919030358968?text=I%20am%20interested%20to%20join%20the%20club%2C%20pls%20share%20details',
+  instagramUrl: 'https://www.instagram.com/spinforcett_kochi/',
   youtubeUrl: 'https://youtube.com/',
 };
 
