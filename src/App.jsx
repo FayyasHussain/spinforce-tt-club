@@ -8,6 +8,7 @@ import { MemberHome } from './pages/MemberHome.jsx';
 import { MemberLayout } from './pages/MemberLayout.jsx';
 import { MemberMatches } from './pages/MemberMatches.jsx';
 import { MemberProfile } from './pages/MemberProfile.jsx';
+import { MemberProfileSettings } from './pages/MemberProfileSettings.jsx';
 import { SkillLadder } from './pages/SkillLadder.jsx';
 import { getUserProfile, listLeaderboard, listPlayers } from './services/profiles.js';
 import { listMemberMatches } from './services/matches.js';
@@ -333,6 +334,17 @@ export function App() {
                 history={history}
                 loadingAuthData={loadingAuthData}
                 loadingHistory={loadingHistory}
+                onRetryProfile={() => refreshAuthedData(session)}
+                onProfileUpdated={() => refreshAuthedData(session)}
+              />
+            )}
+          />
+          <Route
+            path="profile/settings"
+            element={(
+              <MemberProfileSettings
+                profile={profile}
+                loadingAuthData={loadingAuthData}
                 onRetryProfile={() => refreshAuthedData(session)}
               />
             )}
