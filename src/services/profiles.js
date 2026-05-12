@@ -38,8 +38,44 @@ export async function getUserProfile(authUserId) {
     throw error;
   }
 
-  if (!data?.profile_photo_media_id) {
+  return hydrateProfile(data);
+}
+
+export async function getProfileById(profileId) {
+  const { data, error } = await supabase
+    .from('profiles')
+    .select(`
+      id,
+      name,
+      mobile,
+      address,
+      skill_level,
+      auth_user_id,
+      date_of_birth,
+      profile_photo_media_id,
+      emergency_contact_name,
+      emergency_contact,
+      parent_guardian_name
+    `)
+    .eq('id', profileId)
+    .maybeSingle();
+
+  if (error) {
+    throw error;
+  }
+
+  return hydrateProfile(data);
+}
+
+async function hydrateProfile(data) {
+  if (!data) {
     return data;
+  }
+
+  const roles = await listProfileRoleNames(data.id);
+
+  if (!data.profile_photo_media_id) {
+    return { ...data, roles };
   }
 
   const { data: media } = await supabase
@@ -49,7 +85,7 @@ export async function getUserProfile(authUserId) {
     .maybeSingle();
 
   if (!media?.storage_path) {
-    return { ...data, profile_photo_url: null };
+    return { ...data, roles, profile_photo_url: null };
   }
 
   const { data: signedData, error: signedError } = await supabase
@@ -58,10 +94,26 @@ export async function getUserProfile(authUserId) {
     .createSignedUrl(media.storage_path, 60 * 30);
 
   if (signedError) {
-    return { ...data, profile_photo_url: null };
+    return { ...data, roles, profile_photo_url: null };
   }
 
-  return { ...data, profile_photo_url: signedData.signedUrl };
+  return { ...data, roles, profile_photo_url: signedData.signedUrl };
+}
+
+async function listProfileRoleNames(profileId) {
+  const { data, error } = await supabase
+    .from('profile_roles')
+    .select('app_roles(name)')
+    .eq('profile_id', profileId);
+
+  if (error) {
+    throw error;
+  }
+
+  return (data ?? [])
+    .map((item) => item.app_roles?.name)
+    .filter(Boolean)
+    .sort();
 }
 
 export async function listPlayers() {
@@ -75,6 +127,60 @@ export async function listPlayers() {
   }
 
   return data ?? [];
+}
+
+export async function listAdminPlayers() {
+  const { data, error } = await supabase
+    .from('profiles')
+    .select(`
+      id,
+      name,
+      mobile,
+      address,
+      skill_level,
+      date_of_birth,
+      emergency_contact_name,
+      emergency_contact,
+      parent_guardian_name
+    `)
+    .order('name', { ascending: true });
+
+  if (error) {
+    throw error;
+  }
+
+  return data ?? [];
+}
+
+export async function listCoachAssignedPlayers(coachProfileId) {
+  const { data, error } = await supabase
+    .from('coach_player_assignments')
+    .select(`
+      player:profiles!coach_player_assignments_player_profile_id_fkey (
+        id,
+        name,
+        mobile,
+        address,
+        skill_level,
+        date_of_birth,
+        emergency_contact_name,
+        emergency_contact,
+        parent_guardian_name
+      )
+    `)
+    .eq('coach_profile_id', coachProfileId)
+    .eq('is_active', true)
+    .is('ended_at', null)
+    .order('created_at', { ascending: false });
+
+  if (error) {
+    throw error;
+  }
+
+  return (data ?? [])
+    .map((item) => item.player)
+    .filter(Boolean)
+    .sort((first, second) => (first.name ?? '').localeCompare(second.name ?? ''));
 }
 
 export async function updateMemberProfile({ profileId, address, dateOfBirth, emergencyContactName, emergencyContact, profilePhotoFile }) {
