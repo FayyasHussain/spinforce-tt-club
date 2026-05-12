@@ -3,7 +3,7 @@ import { Outlet } from 'react-router-dom';
 import { MemberNav } from '../components/MemberNav.jsx';
 import { site } from '../data/siteContent.js';
 
-export function MemberLayout({ session, profile, loadingAuthData, authError, authMessage, onLogout, onRetryProfile }) {
+export function MemberLayout({ session, profile, loadingAuthData, authError, authMessage, isAdmin, isCoach, onLogout, onRetryProfile }) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const profileLabel = loadingAuthData
     ? 'Loading...'
@@ -47,7 +47,7 @@ export function MemberLayout({ session, profile, loadingAuthData, authError, aut
             <span>{session?.user?.email ?? ''}</span>
             <strong>{profileLabel}</strong>
           </div>
-          <MemberNav onNavigate={() => setIsMenuOpen(false)} />
+          <MemberNav isAdmin={isAdmin} isCoach={isCoach} onNavigate={() => setIsMenuOpen(false)} />
           <div className="member-menu-actions">
             {!profile && !loadingAuthData ? (
               <button className="button button-small" type="button" onClick={onRetryProfile}>Retry Profile</button>

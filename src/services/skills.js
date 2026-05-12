@@ -35,6 +35,41 @@ export async function listSkillLadderData(profileId) {
   };
 }
 
+export async function listSkillComments(progressIds) {
+  if (!progressIds.length) {
+    return [];
+  }
+
+  const { data, error } = await supabase
+    .from('member_skill_comments')
+    .select(`
+      id,
+      progress_id,
+      media_id,
+      comment_type,
+      created_at,
+      comment:comment_id (
+        id,
+        profile_id,
+        body,
+        content,
+        created_at,
+        profile:profile_id (
+          id,
+          name
+        )
+      )
+    `)
+    .in('progress_id', progressIds)
+    .order('created_at', { ascending: false });
+
+  if (error) {
+    throw error;
+  }
+
+  return data ?? [];
+}
+
 export async function ensureMemberSkillProgress({ profileId, skillId }) {
   const { data, error } = await supabase
     .from('member_skill_progress')
