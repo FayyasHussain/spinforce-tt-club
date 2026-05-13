@@ -101,23 +101,35 @@ export function PublicHome({ session, showLogin, authError, authMessage, onToggl
           <div className="card-header">
             <div>
               <h2>Welcome To The Club</h2>
-              <p className="muted">This section should feel like a proper introduction, not a product screen.</p>
+              <p className="section-lead">A table tennis space in Kochi for coaching, community, events, and everyday play.</p>
             </div>
           </div>
-          <p className="body-copy">Spin Force Table Tennis Club is built for players who want more than occasional casual games. We care about coaching quality, competitive repetition, disciplined improvement, and a club environment where players at different levels can grow.</p>
-          <p className="body-copy">Whether someone is stepping in as a beginner, returning to the sport, or training consistently for stronger match results, the goal is the same: give them a place where table tennis is taken seriously and enjoyed deeply.</p>
+          <p className="body-copy">Spin Force Table Tennis Club is a friendly, air-conditioned table tennis space where kids, adults, beginners, and serious players can learn, play, and stay active together. Come in for professional coaching, regular play, club events, or a lively evening with people who enjoy the game.</p>
+          <p className="body-copy">We want the club to feel like a healthy alternative to gym routines and solo activities: social, energetic, skill-building, and easy for families to be part of. Whether you are picking up a racket for the first time or training for stronger match results, there is a place for you here.</p>
           <div className="feature-grid">
             <article className="feature-tile">
-              <strong>Coaching</strong>
-              <p>Structured sessions focused on technique, consistency, and match awareness.</p>
+              <strong>Professional Coaching</strong>
+              <p>Structured sessions for technique, footwork, consistency, and match awareness.</p>
             </article>
             <article className="feature-tile">
-              <strong>Competition</strong>
-              <p>Real matchplay, club rankings, and a rhythm of improvement through play.</p>
+              <strong>Club Events</strong>
+              <p>Regular play sessions, friendly match days, and events that bring players together.</p>
             </article>
             <article className="feature-tile">
-              <strong>Community</strong>
-              <p>A serious but welcoming club culture for players and families in Kochi.</p>
+              <strong>Vibrant Community</strong>
+              <p>Meet people, find practice partners, and enjoy a club culture built around play.</p>
+            </article>
+            <article className="feature-tile">
+              <strong>Comfortable Facility</strong>
+              <p>A clean, comfortable, air-conditioned space designed for focused table tennis.</p>
+            </article>
+            <article className="feature-tile">
+              <strong>Family Friendly</strong>
+              <p>A welcoming environment for children, parents, adults, and first-time visitors.</p>
+            </article>
+            <article className="feature-tile">
+              <strong>Active Lifestyle</strong>
+              <p>A fun alternative to solo workouts, with movement, competition, and connection.</p>
             </article>
           </div>
         </section>
@@ -126,7 +138,7 @@ export function PublicHome({ session, showLogin, authError, authMessage, onToggl
           <div className="card-header">
             <div>
               <h2>Visit Spin Force</h2>
-              <p className="muted">Make the location and access details obvious for first-time visitors.</p>
+              <p className="muted">Drop by for coaching, events, practice, or a first look at the club.</p>
             </div>
           </div>
           <dl className="details">
@@ -150,8 +162,8 @@ export function PublicHome({ session, showLogin, authError, authMessage, onToggl
         <div className="section-intro panel-heading">
           <div className="card-header panel-heading">
             <div>
-              <h2>Club Highlights</h2>
-              <p className="muted">Training clips, club moments, and match energy should live here. Videos play one after another automatically.</p>
+              <h2>Inside Spin Force</h2>
+              <p className="muted">A glimpse of coaching sessions, club events, match rallies, and the community energy at the table.</p>
             </div>
           </div>
         </div>
@@ -161,8 +173,8 @@ export function PublicHome({ session, showLogin, authError, authMessage, onToggl
       <section id="testimonials" className="testimonials-block">
         <div className="section-heading">
           <p className="eyebrow dark">Member Voices</p>
-          <h2>What People Say About Spin Force</h2>
-          <p className="muted">These are placeholder testimonials for now. Replace them with real member photos and quotes when ready.</p>
+          <h2>Stories From The Spin Force Community</h2>
+          <p className="muted">Players and families come for coaching, matchplay, and a club environment that makes table tennis easy to enjoy consistently.</p>
         </div>
         <div className="testimonial-grid">
           {testimonials.map((item) => (
