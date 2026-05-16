@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { captureEvent } from '../lib/analytics.js';
 import { createCompletedMatch } from '../services/matches.js';
 
 function createMatchForm(overrides = {}) {
@@ -253,6 +254,12 @@ export function MatchForm({ profile, players, loadingAuthData, onSaved }) {
 
       setMatchForm(createMatchForm());
       setSubmitMessage('Match saved successfully.');
+      captureEvent('match_saved', {
+        best_of: bestOf,
+        points_to_win: pointsToWin,
+        set_count: sets.length,
+        won_by_current_user: player1Wins > player2Wins,
+      });
       await onSaved();
     } catch (error) {
       setSubmitError(error.message);
