@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import { Navigate, Route, Routes, useNavigate } from 'react-router-dom';
+import { Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
+import { captureEvent, capturePageView, identifyUser, initAnalytics, resetAnalytics } from './lib/analytics.js';
 import { hasSupabaseConfig, supabase } from './lib/supabase.js';
 import { PublicHome } from './pages/PublicHome.jsx';
 import { ClubRankings } from './pages/ClubRankings.jsx';
@@ -19,6 +20,7 @@ import { buildMatchHistory } from './utils/matchHistory.js';
 
 export function App() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [session, setSession] = useState(null);
   const [showLogin, setShowLogin] = useState(false);
   const [profile, setProfile] = useState(null);
@@ -38,6 +40,27 @@ export function App() {
   const [skillError, setSkillError] = useState('');
   const isAdmin = profile?.roles?.includes('admin') ?? false;
   const isCoach = profile?.roles?.includes('coach') ?? false;
+
+  useEffect(() => {
+    initAnalytics();
+  }, []);
+
+  useEffect(() => {
+    capturePageView(`${location.pathname}${location.search}`);
+  }, [location.pathname, location.search]);
+
+  useEffect(() => {
+    if (!session) {
+      return;
+    }
+
+    identifyUser(session.user.id, {
+      member_profile_id: profile?.id,
+      has_profile: Boolean(profile),
+      is_admin: isAdmin,
+      is_coach: isCoach,
+    });
+  }, [session, profile?.id, isAdmin, isCoach]);
 
   if (!hasSupabaseConfig) {
     return (
@@ -223,9 +246,11 @@ export function App() {
     if (error) {
       setAuthError(error.message);
       setAuthMessage('');
+      captureEvent('login_failed');
       return;
     }
 
+    captureEvent('login_success');
     setAuthMessage('Signed in successfully.');
     setShowLogin(false);
   };
@@ -242,6 +267,8 @@ export function App() {
       return;
     }
 
+    captureEvent('logout_success');
+    resetAnalytics();
     setShowLogin(false);
     setAuthMessage('Signed out.');
     navigate('/');
